@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能图书馆 - 首页</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            color: white;
+        }
+
+        h1 {
+            font-size: 56px;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .subtitle {
+            font-size: 22px;
+            margin-bottom: 50px;
+            opacity: 0.95;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-decoration: none;
+            color: #333;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: fadeIn 0.8s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+
+        .card-icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 28px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card-description {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .card-button {
+            display: inline-block;
+            padding: 12px 35px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .card:hover .card-button {
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+            transform: scale(1.05);
+        }
+
+        .features {
+            margin-top: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .features h2 {
+            font-size: 32px;
+            margin-bottom: 30px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
+        }
+
+        .feature-icon {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        .feature-title {
+            font-size: 18px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .feature-desc {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .card:nth-child(1) {
+            animation-delay: 0.2s;
+        }
+
+        .card:nth-child(2) {
+            animation-delay: 0.4s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 智能图书馆</h1>
+        <p class="subtitle">AI 驱动的智能阅读与图书服务助手</p>
+
+        <div class="cards">
+            <a href="library.html" class="card">
+                <div class="card-icon">📖</div>
+                <div class="card-title">标准版</div>
+                <div class="card-description">
+                    简洁易用的阅读助手和图书预约助手<br>
+                    适合日常使用，功能齐全
+                </div>
+                <div class="card-button">进入系统</div>
+            </a>
+
+            <a href="library-pro.html" class="card">
+                <div class="card-icon">✨</div>
+                <div class="card-title">高级版</div>
+                <div class="card-description">
+                    现代化 UI 设计，更流畅的交互体验<br>
+                    打字机效果，视觉更美观
+                </div>
+                <div class="card-button">进入系统</div>
+            </a>
+        </div>
+
+        <div class="features">
+            <h2>核心功能</h2>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">📄</div>
+                    <div class="feature-title">PDF 问答</div>
+                    <div class="feature-desc">上传 PDF 文件，智能分析内容并回答问题</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">💬</div>
+                    <div class="feature-title">智能对话</div>
+                    <div class="feature-desc">支持多轮对话，记忆上下文理解更准确</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📋</div>
+                    <div class="feature-title">图书预约</div>
+                    <div class="feature-desc">了解预约流程、查询状态、取消预约</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🚀</div>
+                    <div class="feature-title">快速响应</div>
+                    <div class="feature-desc">基于 AI 大模型，实时生成准确答案</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

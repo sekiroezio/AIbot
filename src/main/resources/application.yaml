@@ -1,0 +1,69 @@
+aibot:
+  chat-model-type: ollama
+  embedding-model-type: cloud
+
+spring:
+  application:
+    name: AIbot
+  neo4j:
+    uri: neo4j+s://64e77422.databases.neo4j.io
+    authentication:
+      username: neo4j
+      password: a1k4DzQOZA7TPJa_KoYh8vdXnQdkS3N3QLcYDThQGVM
+  ai:
+    vectorstore:
+      neo4j:
+        initialize-schema: true
+        database-name: neo4j
+        index-name: custom-index
+        embedding-dimension: 1536
+        distance-type: cosine
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY}
+    openai:
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/
+      api-key: ${DASHSCOPE_API_KEY}
+      chat:
+        options:
+          model: qwen-flash
+          temperature: 0.7
+      embedding:
+        options:
+          model: text-embedding-v4
+          dimensions: 1536
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: qwen3.5:9b
+      embedding:
+        model: nomic-embed-text
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/aibot?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: 1234
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: 243345
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 10
+          min-idle: 1
+          time-between-eviction-runs: 10s
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 40MB
+  jackson:
+    default-property-inclusion: non_null # JSON处理时忽略非空字段
+logging:
+  level:
+    org.springframework.ai: debug
+    org.springframework.data.neo4j: debug
+    com.xdu.aibot: debug
+    org.neo4j.driver: debug
+    com.baomidou.mybatisplus: debug
+    org.mybatis: debug
