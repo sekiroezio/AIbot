@@ -141,7 +141,7 @@ public class CommonConfiguration {
 
         return ChatClient
                 .builder(chatModel)
-                .defaultSystem("根据所给上下文回答问题，不要随意编造")
+                .defaultSystem("根据所给上下文及知识图谱补充信息（如有）回答问题，不要随意编造")
                 .defaultOptions(OllamaChatOptions.builder().disableThinking().build())
                 .defaultAdvisors(
                         new SimpleLoggerAdvisor(),

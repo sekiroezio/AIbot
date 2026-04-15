@@ -18,12 +18,12 @@ public class AibotProperties {
 
     @Data
     public static class Graph {
-        private String entityVectorIndexName = "entity_embeddings";
-        private int entityVectorDimension = 1536;
-        private int searchTopK = 5;
-        private double searchSimilarityThreshold = 0.5;
-        private int traversalDepth = 2;
-        private int traversalLimit = 50;
+        private String entityVectorIndexName;
+        private int entityVectorDimension;
+        private int searchTopK;
+        private double searchSimilarityThreshold;
+        private int traversalDepth;
+        private int traversalLimit;
     }
 
     public String mapRelationType(String input) {

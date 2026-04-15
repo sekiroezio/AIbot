@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraphRAG - 知识图谱阅读助手</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f8;
+            --bg-sidebar: #f9f9f9;
+            --bg-hover: #ececec;
+            --bg-active: #e3e3e3;
+            --bg-input: #ffffff;
+            --border: #e5e5e5;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b6b6b;
+            --text-muted: #999999;
+            --accent: #10a37f;
+            --accent-hover: #0d8c6d;
+            --user-bubble: #f7f7f8;
+            --shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif; background: var(--bg-primary); height: 100vh; overflow: hidden; color: var(--text-primary); }
+
+        .app-layout { display: grid; grid-template-columns: 1fr 1fr; height: 100vh; }
+
+        .left-panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg-primary); }
+        .right-panel { display: flex; flex-direction: column; background: var(--bg-primary); }
+
+        .panel-header {
+            padding: 14px 24px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            min-height: 52px;
+        }
+        .panel-header h3 { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+
+        .graph-section { flex: 1; min-height: 0; position: relative; background: var(--bg-secondary); overflow: hidden; }
+        #graph-chart { width: 100%; height: 100%; }
+
+        .upload-placeholder {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; padding: 40px; text-align: center; color: var(--text-secondary);
+        }
+        .upload-icon { font-size: 56px; margin-bottom: 20px; opacity: 0.3; }
+        .upload-area {
+            border: 2px dashed var(--border); border-radius: 12px; padding: 32px 48px;
+            text-align: center; transition: all 0.3s; cursor: pointer; margin-top: 20px;
+        }
+        .upload-area:hover { border-color: var(--accent); background-color: rgba(16,163,127,0.04); }
+
+        .uploading-spinner { font-size: 40px; animation: spin 1s linear infinite; margin-bottom: 16px; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .uploading-steps { margin-top: 20px; text-align: left; }
+        .uploading-steps div { padding: 6px 0; color: var(--text-muted); font-size: 13px; }
+        .uploading-steps div.active { color: var(--accent); font-weight: 500; }
+        .uploading-steps div.done { color: var(--accent); }
+
+        .chat-tabs {
+            padding: 0 16px; background: var(--bg-primary); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 2px; overflow-x: auto; min-height: 44px;
+        }
+        .chat-tab {
+            padding: 8px 16px; border-radius: 8px; cursor: pointer;
+            font-size: 13px; color: var(--text-secondary); transition: all 0.15s; white-space: nowrap;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .chat-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+        .chat-tab.active { color: var(--text-primary); background: var(--bg-active); font-weight: 500; }
+        .chat-tab .close-btn { font-size: 11px; opacity: 0; transition: opacity 0.15s; padding: 2px 4px; border-radius: 4px; }
+        .chat-tab:hover .close-btn { opacity: 0.5; }
+        .chat-tab .close-btn:hover { opacity: 1; background: rgba(0,0,0,0.08); }
+        .new-chat-btn { padding: 8px 12px; cursor: pointer; color: var(--text-muted); font-size: 18px; transition: all 0.15s; border-radius: 8px; }
+        .new-chat-btn:hover { color: var(--accent); background: var(--bg-hover); }
+
+        .chat-messages { flex: 1; overflow-y: auto; padding: 24px; background: var(--bg-primary); }
+        .message { margin-bottom: 24px; display: flex; animation: fadeIn 0.25s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .message.user { justify-content: flex-end; }
+        .message.ai { justify-content: flex-start; }
+        .message-content {
+            max-width: 75%; padding: 12px 16px; border-radius: 16px; line-height: 1.7;
+            font-size: 14px;
+        }
+        .message.ai .message-content { background: var(--user-bubble); color: var(--text-primary); }
+        .message.user .message-content { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+
+        .message-content table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+        .message-content th, .message-content td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .message-content th { background: var(--bg-secondary); }
+        .message-content pre { background: var(--bg-secondary); padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+        .message-content code { background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; }
+        .message-content pre code { background: transparent; padding: 0; }
+        .message-content p { margin: 4px 0; }
+
+        .input-area { padding: 16px 24px 24px; background: var(--bg-primary); }
+        .input-wrapper {
+            display: flex; align-items: center; background: var(--bg-input);
+            border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+            box-shadow: var(--shadow); transition: border-color 0.2s;
+        }
+        .input-wrapper:focus-within { border-color: var(--accent); }
+        .input-wrapper input {
+            flex: 1; border: none; outline: none; padding: 14px 16px; font-size: 14px;
+            background: transparent; color: var(--text-primary);
+        }
+        .input-wrapper input::placeholder { color: var(--text-muted); }
+        .input-wrapper input:disabled { opacity: 0.5; }
+        .send-btn {
+            padding: 8px 16px; margin: 4px; border: none; border-radius: 8px;
+            background: var(--accent); color: white; font-size: 14px; cursor: pointer;
+            transition: background 0.2s; font-weight: 500;
+        }
+        .send-btn:hover { background: var(--accent-hover); }
+        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .loading { text-align: center; padding: 16px; color: var(--text-muted); }
+        .loading-dots { display: inline-flex; gap: 4px; }
+        .loading-dots span { width: 6px; height: 6px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+        .graph-placeholder {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; color: var(--text-muted); font-size: 13px;
+        }
+
+        .stat-badge {
+            display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px;
+            background: var(--bg-secondary); border-radius: 12px; font-size: 12px; color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="app-layout">
+            <div class="left-panel">
+                <div class="panel-header">
+                    <h3>🕸️ 知识图谱</h3>
+                    <div v-if="currentGraphData" class="stat-badge">
+                        {{ currentGraphData.nodes.length }} 实体 · {{ currentGraphData.edges.length }} 关系
+                    </div>
+                </div>
+                <div class="graph-section">
+                    <div v-if="!currentGraphData && !currentUploading" class="upload-placeholder">
+                        <div class="upload-icon">🕸️</div>
+                        <h3 style="margin-bottom:8px;font-weight:600;">上传 PDF 构建知识图谱</h3>
+                        <p style="font-size:13px;">上传文档后自动抽取实体关系并可视化</p>
+                        <div class="upload-area" @click="triggerUpload" @dragover.prevent @drop.prevent="handleDrop">
+                            <div style="font-size:28px;margin-bottom:8px;">📄</div>
+                            <p style="font-size:13px;color:var(--text-secondary);">点击或拖拽上传 PDF</p>
+                            <input type="file" ref="fileInput" accept=".pdf" style="display:none" @change="handleFileChange">
+                        </div>
+                    </div>
+                    <div v-if="currentUploading" class="upload-placeholder">
+                        <div class="uploading-spinner">⚙️</div>
+                        <h3 style="margin-bottom:8px;font-weight:600;">正在解析文档...</h3>
+                        <div class="uploading-steps">
+                            <div :class="{active: currentUploadStep===1, done: currentUploadStep>1}">① 上传文件</div>
+                            <div :class="{active: currentUploadStep===2, done: currentUploadStep>2}">② 文本分块与向量化</div>
+                            <div :class="{active: currentUploadStep===3, done: currentUploadStep>3}">③ LLM 实体关系抽取</div>
+                            <div :class="{active: currentUploadStep===4, done: currentUploadStep>4}">④ 知识图谱构建</div>
+                        </div>
+                    </div>
+                    <div id="graph-chart" v-show="currentGraphData && !currentUploading"></div>
+                </div>
+            </div>
+
+            <div class="right-panel">
+                <div class="chat-tabs">
+                    <div v-for="tab in chatTabs" :key="tab.id"
+                         :class="['chat-tab', {active: activeTabId === tab.id}]"
+                         @click="switchTab(tab.id)">
+                        <span>{{ tab.label }}</span>
+                        <span class="close-btn" @click.stop="closeTab(tab.id)">✕</span>
+                    </div>
+                    <div class="new-chat-btn" @click="newChat" title="新建对话">＋</div>
+                </div>
+
+                <div class="chat-messages" ref="chatMessages">
+                    <div v-for="(msg, index) in currentMessages" :key="index"
+                         :class="['message', msg.type]">
+                        <div class="message-content">
+                            <div v-if="msg.typing" class="loading">
+                                <div class="loading-dots"><span></span><span></span><span></span></div>
+                            </div>
+                            <div v-else v-html="renderMarkdown(msg.content)"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-area">
+                    <div class="input-wrapper">
+                        <input v-model="input" placeholder="输入问题，基于文档和知识图谱回答..."
+                               @keyup.enter="sendMessage" :disabled="!hasFile || loading">
+                        <button class="send-btn" @click="sendMessage" :disabled="!hasFile || loading">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const { createApp, ref, reactive, computed, nextTick } = Vue;
+
+    createApp({
+        setup() {
+            const input = ref('');
+            const loading = ref(false);
+            const fileInput = ref(null);
+            const chatMessages = ref(null);
+            let graphChart = null;
+
+            const chatTabs = reactive([]);
+            const activeTabId = ref(null);
+            const tabMessages = reactive({});
+            const tabGraphData = reactive({});
+            const tabHasFile = reactive({});
+            const tabUploading = reactive({});
+            const tabUploadStep = reactive({});
+
+            const currentMessages = computed(() => tabMessages[activeTabId.value] || []);
+            const currentGraphData = computed(() => tabGraphData[activeTabId.value] || null);
+            const hasFile = computed(() => tabHasFile[activeTabId.value] || false);
+            const currentUploading = computed(() => tabUploading[activeTabId.value] || false);
+            const currentUploadStep = computed(() => tabUploadStep[activeTabId.value] || 0);
+
+            const generateChatId = () => 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+            const initTab = (id) => {
+                if (!tabMessages[id]) {
+                    tabMessages[id] = [{ type: 'ai', content: '您好！我是 GraphRAG 阅读助手。上传 PDF 文档后，我会自动构建知识图谱，帮您深度理解文档内容。', typing: false }];
+                }
+            };
+
+            const newChat = () => {
+                const id = generateChatId();
+                chatTabs.push({ id, label: '新对话' });
+                initTab(id);
+                activeTabId.value = id;
+            };
+
+            const switchTab = (id) => {
+                activeTabId.value = id;
+                nextTick(() => {
+                    scrollToBottom();
+                    renderCurrentGraph();
+                });
+            };
+
+            const closeTab = (id) => {
+                const idx = chatTabs.findIndex(t => t.id === id);
+                if (idx === -1) return;
+                chatTabs.splice(idx, 1);
+                delete tabMessages[id];
+                delete tabGraphData[id];
+                delete tabHasFile[id];
+                delete tabUploading[id];
+                delete tabUploadStep[id];
+                if (chatTabs.length === 0) { newChat(); return; }
+                if (activeTabId.value === id) {
+                    activeTabId.value = chatTabs[Math.max(0, idx - 1)].id;
+                    nextTick(() => renderCurrentGraph());
+                }
+            };
+
+            newChat();
+
+            const renderMarkdown = (text) => {
+                if (!text) return '';
+                try { return marked.parse(text); } catch { return text; }
+            };
+
+            const scrollToBottom = () => {
+                nextTick(() => {
+                    if (chatMessages.value) chatMessages.value.scrollTop = chatMessages.value.scrollHeight;
+                });
+            };
+
+            const triggerUpload = () => { fileInput.value.click(); };
+
+            const handleFileChange = (event) => {
+                const file = event.target.files[0];
+                if (file) uploadFile(file);
+                event.target.value = '';
+            };
+
+            const handleDrop = (event) => {
+                const file = event.dataTransfer.files[0];
+                if (file && file.type === 'application/pdf') uploadFile(file);
+                else ElementPlus.ElMessage.error('只能上传 PDF 文件！');
+            };
+
+            const uploadFile = async (file) => {
+                if (file.size > 30 * 1024 * 1024) {
+                    ElementPlus.ElMessage.error('文件大小不能超过 30MB！');
+                    return;
+                }
+
+                const chatId = activeTabId.value;
+                tabUploading[chatId] = true;
+                tabUploadStep[chatId] = 1;
+
+                const stepTimer = setInterval(() => {
+                    if (tabUploadStep[chatId] < 4) {
+                        tabUploadStep[chatId] = (tabUploadStep[chatId] || 0) + 1;
+                    }
+                }, 4000);
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch(`/ai/pdf/upload/${chatId}`, { method: 'POST', body: formData });
+                    const result = await response.json();
+
+                    clearInterval(stepTimer);
+                    tabUploadStep[chatId] = 4;
+
+                    setTimeout(async () => {
+                        tabUploading[chatId] = false;
+                        tabUploadStep[chatId] = 0;
+
+                        if (result.code === 200 || result.ok === 1 || result.success === true) {
+                            tabHasFile[chatId] = true;
+                            const tab = chatTabs.find(t => t.id === chatId);
+                            if (tab) tab.label = file.name.replace('.pdf', '').substring(0, 12);
+
+                            tabMessages[chatId].push({ type: 'ai', content: `文件《${file.name}》上传成功！知识图谱已构建完成，您可以开始提问了。`, typing: false });
+                            if (activeTabId.value === chatId) scrollToBottom();
+
+                            await loadGraphData(chatId);
+                        } else {
+                            ElementPlus.ElMessage.error(result.message || result.msg || '上传失败');
+                        }
+                    }, 500);
+                } catch (error) {
+                    clearInterval(stepTimer);
+                    tabUploading[chatId] = false;
+                    tabUploadStep[chatId] = 0;
+                    ElementPlus.ElMessage.error('上传失败，请重试');
+                }
+            };
+
+            const typeColorMap = {
+                Person: '#ef4444', Organization: '#3b82f6', Location: '#22c55e',
+                Concept: '#a855f7', Event: '#f59e0b', Technology: '#14b8a6',
+                Product: '#f97316', Time: '#6b7280', Other: '#9ca3af'
+            };
+            const typeLabelMap = {
+                Person: '人物', Organization: '组织', Location: '地点',
+                Concept: '概念', Event: '事件', Technology: '技术',
+                Product: '产品', Time: '时间', Other: '其他'
+            };
+
+            const loadGraphData = async (chatId) => {
+                try {
+                    const response = await fetch(`/ai/graph/${chatId}`);
+                    const data = await response.json();
+                    tabGraphData[chatId] = data;
+                    if (activeTabId.value === chatId) {
+                        nextTick(() => renderCurrentGraph());
+                    }
+                } catch (error) {
+                    console.error('图谱数据加载失败:', error);
+                }
+            };
+
+            const renderCurrentGraph = () => {
+                const data = tabGraphData[activeTabId.value];
+                if (!data) {
+                    if (graphChart) graphChart.clear();
+                    return;
+                }
+
+                const container = document.getElementById('graph-chart');
+                if (!container) return;
+                if (!graphChart) {
+                    graphChart = echarts.init(container);
+                    window.addEventListener('resize', () => graphChart && graphChart.resize());
+                }
+
+                const nodes = data.nodes.map(n => ({
+                    name: n.name,
+                    symbolSize: Math.max(24, Math.min(56, 24 + (data.edges.filter(e => e.source === n.name || e.target === n.name).length) * 6)),
+                    itemStyle: { color: typeColorMap[n.entityType] || typeColorMap.Other },
+                    label: { show: true, fontSize: 11, color: '#333' },
+                    tooltip: {
+                        backgroundColor: '#fff', borderColor: '#e5e5e5', textStyle: { color: '#1a1a1a', fontSize: 12 },
+                        formatter: () => `<b>${n.name}</b><br/>类型: ${typeLabelMap[n.entityType] || n.entityType}<br/>${n.description || ''}`
+                    }
+                }));
+
+                const edges = data.edges.map(e => ({
+                    source: e.source,
+                    target: e.target,
+                    lineStyle: { color: '#bbb', width: 1.5, curveness: 0.15 },
+                    label: { show: true, formatter: e.name, fontSize: 9, color: '#888' }
+                }));
+
+                graphChart.setOption({
+                    backgroundColor: '#f7f7f8',
+                    tooltip: { trigger: 'item' },
+                    animationDurationUpdate: 1200,
+                    animationEasingUpdate: 'cubicInOut',
+                    series: [{
+                        type: 'graph',
+                        layout: 'force',
+                        data: nodes,
+                        links: edges,
+                        roam: true,
+                        draggable: true,
+                        force: { repulsion: 350, gravity: 0.08, edgeLength: [80, 200], layoutAnimation: true },
+                        emphasis: { focus: 'adjacency', lineStyle: { width: 3 } },
+                        edgeSymbol: ['none', 'arrow'],
+                        edgeSymbolSize: [0, 7],
+                        label: { position: 'bottom' }
+                    }]
+                }, true);
+            };
+
+            const sendMessage = async () => {
+                if (!input.value.trim() || !hasFile.value) return;
+                const chatId = activeTabId.value;
+                const question = input.value;
+                tabMessages[chatId].push({ type: 'user', content: question, typing: false });
+                loading.value = true;
+                input.value = '';
+                tabMessages[chatId].push({ type: 'ai', content: '', typing: true });
+                if (activeTabId.value === chatId) scrollToBottom();
+
+                try {
+                    const response = await fetch(`/ai/pdf/chat?prompt=${encodeURIComponent(question)}&chatId=${chatId}`);
+                    const answer = await response.text();
+                    tabMessages[chatId].pop();
+                    tabMessages[chatId].push({ type: 'ai', content: answer, typing: false });
+                } catch (error) {
+                    tabMessages[chatId].pop();
+                    tabMessages[chatId].push({ type: 'ai', content: '抱歉，处理失败，请重试。', typing: false });
+                } finally {
+                    loading.value = false;
+                    if (activeTabId.value === chatId) scrollToBottom();
+                }
+            };
+
+            return {
+                input, loading, fileInput, chatMessages,
+                chatTabs, activeTabId, tabMessages, currentMessages,
+                currentGraphData, hasFile, currentUploading, currentUploadStep,
+                triggerUpload, handleFileChange, handleDrop,
+                sendMessage, renderMarkdown, newChat, switchTab, closeTab
+            };
+        }
+    }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>
