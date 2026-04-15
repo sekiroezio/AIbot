@@ -3,7 +3,6 @@ package com.xdu.aibot.config;
 import com.alibaba.cloud.ai.memory.redis.RedissonRedisChatMemoryRepository;
 import com.xdu.aibot.advisor.GraphRagAdvisor;
 import com.xdu.aibot.constant.SystemConstants;
-import com.xdu.aibot.tools.BookTools;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
@@ -24,6 +23,7 @@ import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
+import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -118,11 +118,12 @@ public class CommonConfiguration {
 
 
     @Bean
-    public ChatClient serviceChatClient(ChatModel chatModel, BookTools courseTools) {
+    public ChatClient serviceChatClient(ChatModel chatModel, ToolCallbackProvider tools) {
 
         return ChatClient
                 .builder(chatModel)
                 .defaultSystem(SystemConstants.SERVICE_PROMPT)
+                .defaultToolCallbacks(tools)
                 .defaultOptions(OllamaChatOptions.builder().disableThinking().build())
                 .defaultAdvisors(
                         new SimpleLoggerAdvisor(),
@@ -131,7 +132,6 @@ public class CommonConfiguration {
                                         .build())
                                 .build()
                 )
-                .defaultTools(courseTools)
                 .build();
     }
 

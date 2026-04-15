@@ -36,6 +36,15 @@ spring:
       username: neo4j
       password: 12345678
   ai:
+    mcp:
+      client:
+        sse:
+          connections:
+            book-query-mcp-server:
+              url: http://localhost:8081/sse
+#            AliyunBailianMCP_WebSearch:
+#              url: https://dashscope.aliyuncs.com/api/v1/mcps/WebSearch/mcp
+        enabled: true
     vectorstore:
       neo4j:
         initialize-schema: true
@@ -50,7 +59,7 @@ spring:
       api-key: ${DASHSCOPE_API_KEY}
       chat:
         options:
-          model: qwen-flash
+          model: qwen-max
           temperature: 0.7
       embedding:
         options:
