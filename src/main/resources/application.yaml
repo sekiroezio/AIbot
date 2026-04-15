@@ -1,15 +1,33 @@
 aibot:
-  chat-model-type: ollama
-  embedding-model-type: cloud
+  chat-model-type: cloud
+  relation-type-mapping:
+    CREATED_BY: "创造,创作,写,著,发明,创立"
+    BELONGS_TO: "属于,归"
+    LOCATED_IN: "位于,坐落"
+    PART_OF: "包含,组成,部分"
+    STUDIES_AT: "学习,就读"
+    TEACHES: "教导,教,指导"
+    MANAGES: "管理,领导"
+    WORKS_FOR: "工作,任职"
+    PARTICIPATES_IN: "参与,参加"
+    HELPS: "帮助,帮"
+    OPPOSES: "反对,对抗"
+    FRIEND_OF: "朋友"
+    FAMILY_OF: "家人"
+    SPOUSE_OF: "夫妻,配偶"
+    TEACHER_OF: "师生,老师"
+    HAPPENED_AT: "发生,爆发"
+    INFLUENCED_BY: "影响"
+    RELATED_TO: "相关"
 
 spring:
   application:
     name: AIbot
   neo4j:
-    uri: neo4j+s://64e77422.databases.neo4j.io
+    uri: neo4j://localhost:7687
     authentication:
       username: neo4j
-      password: a1k4DzQOZA7TPJa_KoYh8vdXnQdkS3N3QLcYDThQGVM
+      password: 12345678
   ai:
     vectorstore:
       neo4j:
@@ -35,8 +53,6 @@ spring:
       base-url: http://localhost:11434
       chat:
         model: qwen3.5:9b
-      embedding:
-        model: nomic-embed-text
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/aibot?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true

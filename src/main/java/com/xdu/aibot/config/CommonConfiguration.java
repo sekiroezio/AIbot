@@ -17,10 +17,12 @@ import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.TokenCountBatchingStrategy;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.OllamaEmbeddingModel;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.vectorstore.SearchRequest;
@@ -33,9 +35,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.neo4j.core.Neo4jClient;
 
 @Configuration
+@EnableConfigurationProperties(AibotProperties.class)
 public class CommonConfiguration {
 
     @Value("${spring.neo4j.uri}")
@@ -48,8 +52,6 @@ public class CommonConfiguration {
     @Value("${aibot.chat-model-type:cloud}")
     private String chatModelType;
 
-    @Value("${aibot.embedding-model-type:cloud}")
-    private String embeddingModelType;
 
     @Autowired
     private RedissonRedisChatMemoryRepository redisChatMemoryRepository;
@@ -63,17 +65,9 @@ public class CommonConfiguration {
         return openAiChatModel;
     }
 
-    @Bean
-    @Primary
-    public EmbeddingModel selectedEmbeddingModel(OpenAiEmbeddingModel openAiEmbeddingModel, OllamaEmbeddingModel ollamaEmbeddingModel) {
-        if ("ollama".equalsIgnoreCase(embeddingModelType)) {
-            return ollamaEmbeddingModel;
-        }
-        return openAiEmbeddingModel;
-    }
 
     @Bean
-    public VectorStore mySimpleVectorStore(EmbeddingModel embeddingModel) {
+    public VectorStore mySimpleVectorStore(@Qualifier("openAiEmbeddingModel")OpenAiEmbeddingModel embeddingModel) {
         return SimpleVectorStore.builder(embeddingModel).build();
     }
 
@@ -84,7 +78,7 @@ public class CommonConfiguration {
     }
 
     @Bean
-    public VectorStore customNeo4jVectorStore(Driver driver, EmbeddingModel embeddingModel) {
+    public VectorStore customNeo4jVectorStore(Driver driver, @Qualifier("openAiEmbeddingModel") EmbeddingModel embeddingModel) {
         return Neo4jVectorStore.builder(driver, embeddingModel)
                 .databaseName("neo4j")
                 .distanceType(Neo4jVectorStore.Neo4jDistanceType.COSINE)
@@ -104,6 +98,7 @@ public class CommonConfiguration {
         return ChatClient
                 .builder(chatModel)
                 .defaultSystem(SystemConstants.SERVICE_PROMPT)
+                .defaultOptions(OllamaChatOptions.builder().disableThinking().build())
                 .defaultAdvisors(
                         new SimpleLoggerAdvisor(),
                         MessageChatMemoryAdvisor.builder(MessageWindowChatMemory.builder().chatMemoryRepository(redisChatMemoryRepository)
@@ -121,6 +116,7 @@ public class CommonConfiguration {
         return ChatClient
                 .builder(chatModel)
                 .defaultSystem("根据所给上下文回答问题，不要随意编造")
+                .defaultOptions(OllamaChatOptions.builder().disableThinking().build())
                 .defaultAdvisors(
                         new SimpleLoggerAdvisor(),
                         MessageChatMemoryAdvisor.builder(MessageWindowChatMemory.builder().chatMemoryRepository(redisChatMemoryRepository)
@@ -159,6 +155,7 @@ public class CommonConfiguration {
         return ChatClient
                 .builder(chatModel)
                 .defaultSystem("你是一个实体关系抽取专家。")
+                .defaultOptions(OllamaChatOptions.builder().disableThinking().build())
                 .defaultAdvisors(new SimpleLoggerAdvisor())
                 .build();
     }

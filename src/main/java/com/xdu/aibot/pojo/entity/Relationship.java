@@ -5,9 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * 实体关系
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -15,7 +12,8 @@ import lombok.NoArgsConstructor;
 public class Relationship {
     private String source;
     private String target;
+    private String name;
+    private String type;
     private String description;
-    private String type; // 关系类型
     private int strength;
 }
