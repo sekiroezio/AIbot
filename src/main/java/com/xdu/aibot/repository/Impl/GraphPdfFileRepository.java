@@ -8,7 +8,10 @@ import com.xdu.aibot.service.ExtractionResult;
 import com.xdu.aibot.service.LLMEntityExtractor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.Values;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.reader.ExtractedTextFormatter;
 import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
 import org.springframework.ai.reader.pdf.config.PdfDocumentReaderConfig;
@@ -38,11 +41,17 @@ public class GraphPdfFileRepository implements FileRepository {
 
     private final Neo4jClient neo4jClient;
 
+    private final Driver driver;
+
     @Autowired
     private LLMEntityExtractor llmEntityExtractor;
 
     @Autowired
     private AibotProperties aibotProperties;
+
+    @Qualifier("openAiEmbeddingModel")
+    @Autowired
+    private EmbeddingModel embeddingModel;
 
     @Override
     public boolean save(String chatId, Resource resource) {
@@ -102,7 +111,6 @@ public class GraphPdfFileRepository implements FileRepository {
     private void buildKnowledgeGraphWithLLM(List<Document> documents, String chatId) {
         log.info("开始构建知识图谱 (LLM模式): {}", chatId);
 
-//        TokenTextSplitter splitter = new TokenTextSplitter(400, 300, 10, 50, true);
         List<String> chunks = documents.stream()
                 .map(doc -> {
                     String content = doc.getText();
@@ -139,12 +147,15 @@ public class GraphPdfFileRepository implements FileRepository {
             if (safeType.isEmpty()) safeType = "Other";
             String description = entity.getDescription() != null ? entity.getDescription() : "";
 
+            float[] embedding = computeEntityEmbedding(name, description);
+
             try {
                 String cypher = String.format("""
                         MERGE (n:Entity:`%s` {name: $name})
-                        ON CREATE SET n.entityType = $entityType, n.description = $description, n.docIds = [$chatId]
+                        ON CREATE SET n.entityType = $entityType, n.description = $description, n.docIds = [$chatId], n.embedding = $embedding
                         ON MATCH SET n.description = CASE WHEN $description <> '' AND n.description IS NULL THEN $description ELSE n.description END,
-                                    n.docIds = CASE WHEN $chatId IN n.docIds THEN n.docIds ELSE n.docIds + $chatId END
+                                    n.docIds = CASE WHEN $chatId IN n.docIds THEN n.docIds ELSE n.docIds + $chatId END,
+                                    n.embedding = CASE WHEN n.embedding IS NULL THEN $embedding ELSE n.embedding END
                         """, safeType);
 
                 neo4jClient.query(cypher)
@@ -152,6 +163,7 @@ public class GraphPdfFileRepository implements FileRepository {
                         .bind(entityType).to("entityType")
                         .bind(description).to("description")
                         .bind(chatId).to("chatId")
+                        .bind(Values.value(embedding)).to("embedding")
                         .run();
 
                 log.debug("实体创建/更新: {} ({})", name, entityType);
@@ -192,6 +204,19 @@ public class GraphPdfFileRepository implements FileRepository {
             } catch (Exception e) {
                 log.warn("关系写入失败: {} -> {}, 错误: {}", source, target, e.getMessage());
             }
+        }
+    }
+
+    private float[] computeEntityEmbedding(String name, String description) {
+        try {
+            String text = name;
+            if (description != null && !description.isBlank()) {
+                text = name + "：" + description;
+            }
+            return embeddingModel.embed(text);
+        } catch (Exception e) {
+            log.warn("实体 embedding 计算失败: {}", name, e);
+            return new float[aibotProperties.getGraph().getEntityVectorDimension()];
         }
     }
 }

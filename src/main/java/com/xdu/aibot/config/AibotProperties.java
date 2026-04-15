@@ -14,6 +14,17 @@ public class AibotProperties {
 
     private String chatModelType = "cloud";
     private Map<String, String> relationTypeMapping = new HashMap<>();
+    private Graph graph = new Graph();
+
+    @Data
+    public static class Graph {
+        private String entityVectorIndexName = "entity_embeddings";
+        private int entityVectorDimension = 1536;
+        private int searchTopK = 5;
+        private double searchSimilarityThreshold = 0.5;
+        private int traversalDepth = 2;
+        private int traversalLimit = 50;
+    }
 
     public String mapRelationType(String input) {
         if (input == null || input.isBlank()) return "RELATED_TO";

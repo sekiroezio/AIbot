@@ -4,6 +4,7 @@ import com.alibaba.cloud.ai.memory.redis.RedissonRedisChatMemoryRepository;
 import com.xdu.aibot.advisor.GraphRagAdvisor;
 import com.xdu.aibot.constant.SystemConstants;
 import com.xdu.aibot.tools.BookTools;
+import lombok.extern.slf4j.Slf4j;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
@@ -17,11 +18,9 @@ import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.TokenCountBatchingStrategy;
 import org.springframework.ai.ollama.OllamaChatModel;
-import org.springframework.ai.ollama.OllamaEmbeddingModel;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
@@ -32,12 +31,14 @@ import org.springframework.ai.vectorstore.neo4j.Neo4jVectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.neo4j.core.Neo4jClient;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 
+@Slf4j
 @Configuration
 @EnableConfigurationProperties(AibotProperties.class)
 public class CommonConfiguration {
@@ -52,9 +53,33 @@ public class CommonConfiguration {
     @Value("${aibot.chat-model-type:cloud}")
     private String chatModelType;
 
-
     @Autowired
     private RedissonRedisChatMemoryRepository redisChatMemoryRepository;
+
+    @Autowired
+    private AibotProperties aibotProperties;
+
+    @Bean
+    public SmartInitializingSingleton entityVectorIndexInitializer(Driver driver) {
+        return () -> {
+            AibotProperties.Graph graphConfig = aibotProperties.getGraph();
+            try (var session = driver.session()) {
+                session.run("""
+                    CREATE VECTOR INDEX %s IF NOT EXISTS
+                    FOR (n:Entity) ON (n.embedding)
+                    OPTIONS {
+                        indexConfig: {
+                            `vector.dimensions`: %d,
+                            `vector.similarity_function`: 'cosine'
+                        }
+                    }
+                    """.formatted(graphConfig.getEntityVectorIndexName(), graphConfig.getEntityVectorDimension()));
+                log.info("Entity向量索引创建成功: {}", graphConfig.getEntityVectorIndexName());
+            } catch (Exception e) {
+                log.error("Entity向量索引创建失败: {}", e.getMessage(), e);
+            }
+        };
+    }
 
     @Bean
     @Primary
@@ -111,7 +136,8 @@ public class CommonConfiguration {
     }
 
     @Bean
-    public ChatClient pdfChatClient(ChatModel chatModel, @Qualifier("customNeo4jVectorStore") VectorStore vectorStore, Neo4jClient neo4jClient) {
+    public ChatClient pdfChatClient(ChatModel chatModel, @Qualifier("customNeo4jVectorStore") VectorStore vectorStore,
+                                    Neo4jClient neo4jClient, Driver driver, @Qualifier("openAiEmbeddingModel") EmbeddingModel embeddingModel) {
 
         return ChatClient
                 .builder(chatModel)
@@ -130,7 +156,7 @@ public class CommonConfiguration {
                                                 .topK(3)
                                                 .build()
                                 ).build(),
-                        new GraphRagAdvisor(neo4jClient),
+                        new GraphRagAdvisor(neo4jClient, driver, embeddingModel, aibotProperties),
                         new CallAdvisor() {
                             @Override
                             public String getName() { return "TrapAdvisor"; }

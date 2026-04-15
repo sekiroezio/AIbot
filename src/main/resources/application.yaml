@@ -1,5 +1,12 @@
 aibot:
   chat-model-type: cloud
+  graph:
+    entity-vector-index-name: entity_embeddings
+    entity-vector-dimension: 1536
+    search-top-k: 2
+    search-similarity-threshold: 0.5
+    traversal-depth: 2
+    traversal-limit: 6
   relation-type-mapping:
     CREATED_BY: "创造,创作,写,著,发明,创立"
     BELONGS_TO: "属于,归"
