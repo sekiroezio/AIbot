@@ -68,11 +68,11 @@ public class GraphRagAdvisor implements CallAdvisor {
 
         Set<String> seedNames = findSeedEntities(userQuestion, chatId);
         if (seedNames.isEmpty()) {
-            log.info("GraphRAG: 未找到种子实体，跳过图谱增强");
+            log.info("GraphRAG: 未找到根实体，跳过图谱增强");
             return chain.nextCall(request);
         }
 
-        log.info("GraphRAG: 种子实体集合: {}", seedNames);
+        log.info("GraphRAG: 根实体集合: {}", seedNames);
 
         List<Map<String, String>> relations = multiHopTraversal(seedNames, chatId);
         if (relations.isEmpty()) {
@@ -157,9 +157,9 @@ public class GraphRagAdvisor implements CallAdvisor {
                 }
             }
 
-            log.debug("向量检索种子: {}", results);
+            log.debug("向量检索根实体: {}", results);
         } catch (Exception e) {
-            log.warn("向量检索种子节点失败，降级为仅关键词检索: {}", e.getMessage());
+            log.warn("向量检索根实体节点失败，降级为仅关键词检索: {}", e.getMessage());
         }
 
         return results;
@@ -187,7 +187,7 @@ public class GraphRagAdvisor implements CallAdvisor {
                 .stream()
                 .toList();
 
-        log.debug("HanLP关键词种子: keywords={}, matched={}", keywords, matched);
+        log.debug("关键词匹配根实体: keywords={}, matched={}", keywords, matched);
         return matched;
     }
 
