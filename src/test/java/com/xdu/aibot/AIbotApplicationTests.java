@@ -1,14 +1,16 @@
 package com.xdu.aibot;
 
-import com.xdu.aibot.util.VectorDistanceUtils;
 import org.junit.jupiter.api.Test;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.QueryConfig;
-import org.springframework.ai.openai.OpenAiChatModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -17,61 +19,14 @@ import java.util.concurrent.TimeUnit;
 
 @SpringBootTest
 class AIbotApplicationTests {
+    private static final Logger log = LoggerFactory.getLogger(AIbotApplicationTests.class);
     @Autowired
     private OpenAiEmbeddingModel embeddingModel;
     @Autowired
     private Driver driver;
-
-    @Test
-    void contextLoads() {
-        float[] v1 = embeddingModel.embed("人类");
-        float[] v2 = embeddingModel.embed("失明");
-        float[] v3 = embeddingModel.embed("机械");
-
-        float[] r1 = VectorDistanceUtils.addVectors(v1, v2);
-        double r = VectorDistanceUtils.cosineDistance(r1, v3);
-        System.out.println(r);
-
-    }
-
-    @Test
-    public void testEmbedding() {
-        // 1.测试数据
-        // 1.1.用来查询的文本，国际冲突
-        String query = "苹果";
-
-        // 1.2.用来做比较的文本
-        String[] texts = new String[]{
-                "梨",
-                "苹果醋",
-                "果树",
-                "人工智能",
-                "电子游戏",
-        };
-        // 2.向量化
-        // 2.1.先将查询文本向量化
-        float[] queryVector = embeddingModel.embed(query);
-
-        // 2.2.再将比较文本向量化，放到一个数组
-        List<float[]> textVectors = embeddingModel.embed(Arrays.asList(texts));
-
-        // 3.比较欧氏距离
-        // 3.1.把查询文本自己与自己比较，肯定是相似度最高的
-        System.out.println(VectorDistanceUtils.euclideanDistance(queryVector, queryVector));
-        // 3.2.把查询文本与其它文本比较
-        for (float[] textVector : textVectors) {
-            System.out.println(VectorDistanceUtils.euclideanDistance(queryVector, textVector));
-        }
-        System.out.println("------------------");
-
-        // 4.比较余弦距离
-        // 4.1.把查询文本自己与自己比较，肯定是相似度最高的
-        System.out.println(VectorDistanceUtils.cosineDistance(queryVector, queryVector));
-        // 4.2.把查询文本与其它文本比较
-        for (float[] textVector : textVectors) {
-            System.out.println(VectorDistanceUtils.cosineDistance(queryVector, textVector));
-        }
-    }
+    @Qualifier("serviceChatClient")
+    @Autowired
+    private ChatClient serviceChatClient;
 
     @Test
     public void testNeo4j() {
@@ -98,6 +53,16 @@ class AIbotApplicationTests {
         System.out.printf("Created %d records in %d ms.%n",
                 summary.counters().nodesCreated(),
                 summary.resultAvailableAfter(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    public void testMcp() {
+        String response = serviceChatClient
+                .prompt()
+                .user("我想查一下今天的上证指数")
+                .call()
+                .content();
+        log.info(response);
     }
 
 }

@@ -36,6 +36,22 @@ spring:
       username: neo4j
       password: 12345678
   ai:
+    mcp:
+      client:
+        enabled: true
+        type: SYNC
+        initialized: true
+        sse:
+          connections:
+            book-query-mcp-server:
+              url: http://localhost:8848/sse
+        stdio:
+          connections:
+            tavily:
+              command: cmd.exe
+              args: ["/c", "npx", "-y", "tavily-mcp@latest"]
+              env:
+                TAVILY_API_KEY: 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
     vectorstore:
       neo4j:
         initialize-schema: true
