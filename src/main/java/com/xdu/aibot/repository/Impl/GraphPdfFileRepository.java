@@ -102,7 +102,7 @@ public class GraphPdfFileRepository implements FileRepository {
     private void buildKnowledgeGraphWithLLM(List<Document> documents, String chatId) {
         log.info("开始构建知识图谱 (LLM模式): {}", chatId);
 
-        TokenTextSplitter splitter = new TokenTextSplitter(400, 300, 10, 50, true);
+//        TokenTextSplitter splitter = new TokenTextSplitter(400, 300, 10, 50, true);
         List<String> chunks = documents.stream()
                 .map(doc -> {
                     String content = doc.getText();
@@ -135,15 +135,19 @@ public class GraphPdfFileRepository implements FileRepository {
             createdEntities.add(name.toLowerCase());
 
             String entityType = entity.getType() != null ? entity.getType() : "Other";
+            String safeType = entityType.replaceAll("[^a-zA-Z0-9_]", "");
+            if (safeType.isEmpty()) safeType = "Other";
             String description = entity.getDescription() != null ? entity.getDescription() : "";
 
             try {
-                neo4jClient.query("""
-                        MERGE (n:Entity {name: $name})
+                String cypher = String.format("""
+                        MERGE (n:Entity:`%s` {name: $name})
                         ON CREATE SET n.entityType = $entityType, n.description = $description, n.docIds = [$chatId]
                         ON MATCH SET n.description = CASE WHEN $description <> '' AND n.description IS NULL THEN $description ELSE n.description END,
                                     n.docIds = CASE WHEN $chatId IN n.docIds THEN n.docIds ELSE n.docIds + $chatId END
-                        """)
+                        """, safeType);
+
+                neo4jClient.query(cypher)
                         .bind(name).to("name")
                         .bind(entityType).to("entityType")
                         .bind(description).to("description")

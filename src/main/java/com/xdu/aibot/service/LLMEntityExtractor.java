@@ -77,7 +77,8 @@ public class LLMEntityExtractor {
             List<Entity> entities = extractEntities(text);
             List<Relationship> relationships = extractRelations(text, entities);
 
-            ExtractionResult result = deduplicate(new ExtractionResult(entities, relationships));
+//            ExtractionResult result = deduplicate(new ExtractionResult(entities, relationships));
+            ExtractionResult result = new ExtractionResult(entities, relationships);
 
             log.info("LLM 抽取完成: {} 个实体, {} 个关系",
                     result.getEntities().size(),
@@ -102,16 +103,17 @@ public class LLMEntityExtractor {
                 allEntities.addAll(result.getEntities());
                 allRelationships.addAll(result.getRelationships());
 
-                if (i < chunks.size() - 1) {
-                    Thread.sleep(200);
-                }
+//                if (i < chunks.size() - 1) {
+//                    Thread.sleep(200);
+//                }
             } catch (Exception e) {
                 log.error("处理文本块 {} 失败", i, e);
             }
         }
 
         ExtractionResult mergedResult = new ExtractionResult(allEntities, allRelationships);
-        return deduplicate(mergedResult);
+//        return deduplicate(mergedResult);
+        return mergedResult;
     }
 
     private List<Entity> extractEntities(String text) {
