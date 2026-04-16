@@ -13,6 +13,5 @@ public class Book {
     private String name;
     private String author;
     private String type;
-    private Integer score;
     private Integer stock;
 }

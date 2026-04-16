@@ -1,5 +1,6 @@
 package com.xdu.aibot.config;
 
+import com.alibaba.cloud.ai.graph.agent.ReactAgent;
 import com.alibaba.cloud.ai.memory.redis.RedissonRedisChatMemoryRepository;
 import com.xdu.aibot.advisor.GraphRagAdvisor;
 import com.xdu.aibot.constant.SystemConstants;
@@ -116,35 +117,22 @@ public class CommonConfiguration {
                 .build();
     }
 
+    @Bean
+    public ReactAgent bookAgent(ChatModel chatModel, ToolCallbackProvider tools) {
+        return ReactAgent.builder()
+                .name("book-assistant")
+                .model(chatModel)
+                .instruction(SystemConstants.SERVICE_PROMPT)
+                .toolCallbackProviders(tools)
+                .enableLogging(true)
+                .build();
+    }
 
     @Bean
     public ChatClient serviceChatClient(ChatModel chatModel, ToolCallbackProvider tools) {
-
         return ChatClient
                 .builder(chatModel)
-//                .defaultSystem(SystemConstants.SERVICE_PROMPT)
-                .defaultSystem(".defaultSystem(\"\"\"\n" +
-                        "    你是图书馆智能借阅助手\"小图\"。你必须按 ReAct 模式工作：\n" +
-                        "    \n" +
-                        "    1. 思考(Reason)：分析用户需求，判断需要哪些工具\n" +
-                        "    2. 行动(Act)：调用工具获取信息\n" +
-                        "    3. 观察(Observe)：分析工具返回结果，判断是否需要继续调用\n" +
-                        "    4. 重复以上步骤直到可以回答用户\n" +
-                        "    \n" +
-                        "    可用工具：\n" +
-                        "    - 查询书籍信息：查询馆藏图书（按类型/作者/书名/评分/库存）\n" +
-                        "    - 预约图书：预约借书（需姓名+手机号）\n" +
-                        "    - tavily-search：网络搜索（查豆瓣评分、书评等外部信息）\n" +
-                        "    \n" +
-                        "    示例推理链：\n" +
-                        "    用户：\"想借豆瓣评分最高的欧美文学\"\n" +
-                        "    → 思考：需要先查馆藏欧美文学，再搜豆瓣评分\n" +
-                        "    → 行动：调用\"查询书籍信息\"(type=欧美文学)\n" +
-                        "    → 观察：得到3本书：《xxx》《yyy》《zzz》\n" +
-                        "    → 行动：调用\"tavily-search\"搜索每本书的豆瓣评分\n" +
-                        "    → 观察：《xxx》9.2分，《yyy》8.5分，《zzz》7.8分\n" +
-                        "    → 回答：推荐《xxx》，豆瓣9.2分\n" +
-                        "    \"\"\")")
+                .defaultSystem(SystemConstants.SERVICE_PROMPT)
                 .defaultToolCallbacks(tools)
                 .defaultOptions(OllamaChatOptions.builder().disableThinking().build())
                 .defaultAdvisors(
@@ -160,7 +148,6 @@ public class CommonConfiguration {
     @Bean
     public ChatClient pdfChatClient(ChatModel chatModel, @Qualifier("customNeo4jVectorStore") VectorStore vectorStore,
                                     Neo4jClient neo4jClient, Driver driver, @Qualifier("openAiEmbeddingModel") EmbeddingModel embeddingModel) {
-
         return ChatClient
                 .builder(chatModel)
                 .defaultSystem("根据所给上下文及知识图谱补充信息（如有）回答问题，不要随意编造")
