@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIbot 智能助手</title>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f8;
+            --border: #e5e5e5;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b6b6b;
+            --text-muted: #999999;
+            --accent: #10a37f;
+            --accent-hover: #0d8c6d;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+            background: var(--bg-secondary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+        }
+
+        .container { text-align: center; padding: 40px 20px; }
+
+        .title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        .subtitle {
+            font-size: 15px;
+            color: var(--text-muted);
+            margin-bottom: 48px;
+        }
+
+        .cards {
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            width: 320px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 36px 28px;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: all 0.25s ease;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            box-shadow: 0 8px 30px rgba(16,163,127,0.12);
+        }
+
+        .card-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .card-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        .card-tags {
+            margin-top: 16px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .card-tag {
+            padding: 3px 10px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">🤖 AIbot 智能助手</div>
+        <div class="subtitle">选择一个应用场景开始体验</div>
+
+        <div class="cards">
+            <a class="card" href="/graphrag.html">
+                <div class="card-icon">🕸️</div>
+                <div class="card-title">GraphRAG 知识图谱阅读助手</div>
+                <div class="card-desc">上传 PDF 文档，自动构建知识图谱并可视化，基于图谱增强的智能问答</div>
+                <div class="card-tags">
+                    <span class="card-tag">知识图谱</span>
+                    <span class="card-tag">向量检索</span>
+                    <span class="card-tag">多跳推理</span>
+                </div>
+            </a>
+
+            <a class="card" href="/book.html">
+                <div class="card-icon">📚</div>
+                <div class="card-title">图书馆预约助手</div>
+                <div class="card-desc">ReAct 智能体，自动编排多步工具调用，查询馆藏、搜索评分、预约借书</div>
+                <div class="card-tags">
+                    <span class="card-tag">ReAct Agent</span>
+                    <span class="card-tag">MCP 工具</span>
+                    <span class="card-tag">思维链</span>
+                </div>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

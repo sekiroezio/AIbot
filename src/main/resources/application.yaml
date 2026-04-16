@@ -66,7 +66,7 @@ spring:
       api-key: ${DASHSCOPE_API_KEY}
       chat:
         options:
-          model: qwen-flash
+          model: qwen-max
           temperature: 0.7
       embedding:
         options:
@@ -97,7 +97,7 @@ spring:
       max-file-size: 30MB
       max-request-size: 40MB
   jackson:
-    default-property-inclusion: non_null # JSON处理时忽略非空字段
+    default-property-inclusion: non_null
 logging:
   level:
     org.springframework.ai: debug

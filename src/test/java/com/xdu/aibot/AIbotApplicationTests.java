@@ -1,68 +1,40 @@
 package com.xdu.aibot;
 
+import com.alibaba.cloud.ai.graph.agent.ReactAgent;
+import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
-import org.neo4j.driver.QueryConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.openai.OpenAiEmbeddingModel;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-
+@Slf4j
 @SpringBootTest
 class AIbotApplicationTests {
-    private static final Logger log = LoggerFactory.getLogger(AIbotApplicationTests.class);
+
     @Autowired
-    private OpenAiEmbeddingModel embeddingModel;
-    @Autowired
-    private Driver driver;
-    @Qualifier("serviceChatClient")
-    @Autowired
-    private ChatClient serviceChatClient;
+    private ReactAgent bookAgent;
 
     @Test
-    public void testNeo4j() {
-        String dbUri = "neo4j+s://64e77422.databases.neo4j.io";
-        String dbUser = "neo4j";
-        String dbPassword = "a1k4DzQOZA7TPJa_KoYh8vdXnQdkS3N3QLcYDThQGVM";
-
-        try (var driver = GraphDatabase.driver(dbUri, AuthTokens.basic(dbUser, dbPassword))) {
-            driver.verifyConnectivity();
-            System.out.println("Connection established.");
+    void testNeo4jConnection() {
+        Driver driver = GraphDatabase.driver("neo4j://localhost:7687",
+                AuthTokens.basic("neo4j", "12345678"));
+        try (var session = driver.session()) {
+            var result = session.run("RETURN 1 AS num");
+            var record = result.single();
+            log.info("Neo4j连接成功，返回值: {}", record.get("num").asInt());
+        } finally {
+            driver.close();
         }
-
-
-        var result = driver.executableQuery("""
-            CREATE (a:Person {name: $name})
-            CREATE (b:Person {name: $friendName})
-            CREATE (a)-[:KNOWS]->(b)
-            """)
-                .withParameters(Map.of("name", "Alice", "friendName", "David"))
-                .withConfig(QueryConfig.builder().withDatabase("neo4j").build())
-                .execute();
-
-        var summary = result.summary();
-        System.out.printf("Created %d records in %d ms.%n",
-                summary.counters().nodesCreated(),
-                summary.resultAvailableAfter(TimeUnit.MILLISECONDS));
     }
 
     @Test
-    public void testMcp() {
-        String response = serviceChatClient
-                .prompt()
-                .user("我想查一下今天的上证指数")
-                .call()
-                .content();
-        log.info(response);
+    public void testMcp() throws GraphRunnerException {
+        AssistantMessage response = bookAgent.call("我想借一本三体");
+        log.info(response.getText());
     }
 
 }

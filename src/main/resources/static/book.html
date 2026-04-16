@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图书馆预约助手</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f8;
+            --bg-sidebar: #f9f9f9;
+            --bg-hover: #ececec;
+            --bg-active: #e3e3e3;
+            --bg-input: #ffffff;
+            --border: #e5e5e5;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b6b6b;
+            --text-muted: #999999;
+            --accent: #10a37f;
+            --accent-hover: #0d8c6d;
+            --user-bubble: #f7f7f8;
+            --shadow: 0 2px 6px rgba(0,0,0,0.06);
+            --thinking-bg: #fefce8;
+            --thinking-border: #fde68a;
+            --thinking-text: #92400e;
+            --tool-bg: #eff6ff;
+            --tool-border: #bfdbfe;
+            --tool-text: #1e40af;
+            --tool-result-bg: #f0fdf4;
+            --tool-result-border: #bbf7d0;
+            --tool-result-text: #166534;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif; background: var(--bg-primary); height: 100vh; overflow: hidden; color: var(--text-primary); }
+
+        .app-layout { display: flex; flex-direction: column; height: 100vh; max-width: 860px; margin: 0 auto; }
+
+        .app-header {
+            padding: 14px 24px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 52px;
+        }
+        .app-header h3 { font-size: 15px; font-weight: 600; }
+        .back-link { font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color 0.2s; }
+        .back-link:hover { color: var(--accent); }
+
+        .chat-messages { flex: 1; overflow-y: auto; padding: 24px; background: var(--bg-primary); }
+        .message { margin-bottom: 20px; animation: fadeIn 0.25s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .message.user { display: flex; justify-content: flex-end; }
+        .message.ai { display: flex; justify-content: flex-start; }
+
+        .message-content {
+            max-width: 80%; padding: 12px 16px; border-radius: 16px; line-height: 1.7; font-size: 14px;
+        }
+        .message.ai .message-content { background: var(--user-bubble); color: var(--text-primary); }
+        .message.user .message-content { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+
+        .message-content table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+        .message-content th, .message-content td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .message-content th { background: var(--bg-secondary); }
+        .message-content pre { background: var(--bg-secondary); padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+        .message-content code { background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; }
+        .message-content pre code { background: transparent; padding: 0; }
+        .message-content p { margin: 4px 0; }
+
+        .thinking-block {
+            margin: 6px 0; border-radius: 8px; overflow: hidden;
+            border: 1px solid var(--thinking-border); background: var(--thinking-bg);
+        }
+        .thinking-header {
+            padding: 6px 12px; font-size: 11px; color: var(--thinking-text); cursor: pointer;
+            display: flex; align-items: center; gap: 6px; user-select: none; font-weight: 500;
+        }
+        .thinking-header:hover { background: rgba(253,230,138,0.3); }
+        .thinking-header .arrow { transition: transform 0.2s; font-size: 10px; }
+        .thinking-header .arrow.collapsed { transform: rotate(-90deg); }
+        .thinking-body {
+            padding: 8px 12px; font-size: 12px; color: var(--thinking-text); line-height: 1.6;
+            border-top: 1px solid var(--thinking-border); white-space: pre-wrap; word-break: break-all;
+        }
+
+        .tool-block {
+            margin: 6px 0; border-radius: 8px; overflow: hidden;
+            border: 1px solid var(--tool-border); background: var(--tool-bg);
+        }
+        .tool-header {
+            padding: 6px 12px; font-size: 11px; color: var(--tool-text); cursor: pointer;
+            display: flex; align-items: center; gap: 6px; user-select: none; font-weight: 500;
+        }
+        .tool-header:hover { background: rgba(191,219,254,0.3); }
+        .tool-header .arrow { transition: transform 0.2s; font-size: 10px; }
+        .tool-header .arrow.collapsed { transform: rotate(-90deg); }
+        .tool-body {
+            padding: 8px 12px; font-size: 12px; color: var(--tool-text); line-height: 1.6;
+            border-top: 1px solid var(--tool-border); white-space: pre-wrap; word-break: break-all;
+        }
+
+        .tool-result-block {
+            margin: 6px 0; border-radius: 8px; overflow: hidden;
+            border: 1px solid var(--tool-result-border); background: var(--tool-result-bg);
+        }
+        .tool-result-header {
+            padding: 6px 12px; font-size: 11px; color: var(--tool-result-text); cursor: pointer;
+            display: flex; align-items: center; gap: 6px; user-select: none; font-weight: 500;
+        }
+        .tool-result-header:hover { background: rgba(187,247,208,0.3); }
+        .tool-result-header .arrow { transition: transform 0.2s; font-size: 10px; }
+        .tool-result-header .arrow.collapsed { transform: rotate(-90deg); }
+        .tool-result-body {
+            padding: 8px 12px; font-size: 12px; color: var(--tool-result-text); line-height: 1.6;
+            border-top: 1px solid var(--tool-result-border); white-space: pre-wrap; word-break: break-all;
+            max-height: 200px; overflow-y: auto;
+        }
+
+        .input-area { padding: 16px 24px 24px; background: var(--bg-primary); }
+        .input-wrapper {
+            display: flex; align-items: center; background: var(--bg-input);
+            border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+            box-shadow: var(--shadow); transition: border-color 0.2s;
+        }
+        .input-wrapper:focus-within { border-color: var(--accent); }
+        .input-wrapper input {
+            flex: 1; border: none; outline: none; padding: 14px 16px; font-size: 14px;
+            background: transparent; color: var(--text-primary);
+        }
+        .input-wrapper input::placeholder { color: var(--text-muted); }
+        .input-wrapper input:disabled { opacity: 0.5; }
+        .send-btn {
+            padding: 8px 16px; margin: 4px; border: none; border-radius: 8px;
+            background: var(--accent); color: white; font-size: 14px; cursor: pointer;
+            transition: background 0.2s; font-weight: 500;
+        }
+        .send-btn:hover { background: var(--accent-hover); }
+        .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .loading { text-align: center; padding: 16px; color: var(--text-muted); }
+        .loading-dots { display: inline-flex; gap: 4px; }
+        .loading-dots span { width: 6px; height: 6px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+        .step-indicator {
+            display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+            border-radius: 10px; font-size: 11px; font-weight: 500; margin-right: 6px;
+        }
+        .step-thinking { background: #fef3c7; color: #92400e; }
+        .step-tool { background: #dbeafe; color: #1e40af; }
+        .step-result { background: #dcfce7; color: #166534; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="app-layout">
+            <div class="app-header">
+                <h3>📚 图书馆预约助手</h3>
+                <a href="/" class="back-link">← 返回导航</a>
+            </div>
+
+            <div class="chat-messages" ref="chatMessages">
+                <div v-for="(msg, index) in messages" :key="index" :class="['message', msg.role]">
+                    <div class="message-content">
+                        <template v-if="msg.role === 'user'">
+                            {{ msg.content }}
+                        </template>
+                        <template v-else>
+                            <template v-for="(part, pi) in msg.parts" :key="pi">
+                                <div v-if="part.type === 'thinking'" class="thinking-block">
+                                    <div class="thinking-header" @click="part.collapsed = !part.collapsed">
+                                        <span :class="['arrow', {collapsed: part.collapsed}]">▼</span>
+                                        <span class="step-indicator step-thinking">💭 思考</span>
+                                        <span>{{ part.preview }}</span>
+                                    </div>
+                                    <div v-show="!part.collapsed" class="thinking-body">{{ part.content }}</div>
+                                </div>
+                                <div v-else-if="part.type === 'tool_call'" class="tool-block">
+                                    <div class="tool-header" @click="part.collapsed = !part.collapsed">
+                                        <span :class="['arrow', {collapsed: part.collapsed}]">▼</span>
+                                        <span class="step-indicator step-tool">🔧 调用</span>
+                                        <span>{{ part.toolName }}</span>
+                                    </div>
+                                    <div v-show="!part.collapsed" class="tool-body">
+                                        <div v-if="part.toolArgs"><b>参数:</b> {{ part.toolArgs }}</div>
+                                    </div>
+                                </div>
+                                <div v-else-if="part.type === 'tool_result'" class="tool-result-block">
+                                    <div class="tool-result-header" @click="part.collapsed = !part.collapsed">
+                                        <span :class="['arrow', {collapsed: part.collapsed}]">▼</span>
+                                        <span class="step-indicator step-result">📋 结果</span>
+                                        <span>{{ part.toolName }}</span>
+                                    </div>
+                                    <div v-show="!part.collapsed" class="tool-result-body">{{ part.content }}</div>
+                                </div>
+                                <div v-else-if="part.type === 'answer'" v-html="renderMarkdown(part.content)"></div>
+                            </template>
+                            <div v-if="msg.loading" class="loading">
+                                <div class="loading-dots"><span></span><span></span><span></span></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <input v-model="input" placeholder="输入问题，如：想借豆瓣评分最高的欧美文学..."
+                           @keyup.enter="sendMessage" :disabled="loading">
+                    <button class="send-btn" @click="sendMessage" :disabled="loading || !input.trim()">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const { createApp, ref, nextTick } = Vue;
+
+    createApp({
+        setup() {
+            const input = ref('');
+            const loading = ref(false);
+            const chatMessages = ref(null);
+            const messages = ref([
+                {
+                    role: 'ai',
+                    parts: [{ type: 'answer', content: '您好！我是图书馆智能借阅助手"小图"📚\n\n我可以帮您查询馆藏书籍、搜索网络评分信息、预约借书。试试问我：\n- "想借豆瓣评分最高的欧美文学"\n- "有没有刘慈欣的书"\n- "帮我预约《三体》"' }],
+                    loading: false
+                }
+            ]);
+
+            const chatId = 'book_' + Date.now();
+
+            const renderMarkdown = (text) => {
+                if (!text) return '';
+                try { return marked.parse(text); } catch { return text; }
+            };
+
+            const scrollToBottom = () => {
+                nextTick(() => {
+                    if (chatMessages.value) chatMessages.value.scrollTop = chatMessages.value.scrollHeight;
+                });
+            };
+
+            const previewText = (text, maxLen = 40) => {
+                if (!text) return '';
+                const clean = text.replace(/\n/g, ' ').trim();
+                return clean.length > maxLen ? clean.substring(0, maxLen) + '...' : clean;
+            };
+
+            const sendMessage = async () => {
+                if (!input.value.trim() || loading.value) return;
+                const question = input.value;
+                input.value = '';
+                loading.value = true;
+
+                messages.value.push({ role: 'user', content: question });
+
+                const aiMsg = { role: 'ai', parts: [], loading: true };
+                messages.value.push(aiMsg);
+                scrollToBottom();
+
+                try {
+                    const response = await fetch(`/ai/service/stream?prompt=${encodeURIComponent(question)}&chatId=${chatId}`);
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+
+                        for (const line of lines) {
+                            if (!line.startsWith('data:')) continue;
+                            const jsonStr = line.substring(5).trim();
+                            if (!jsonStr) continue;
+
+                            try {
+                                const event = JSON.parse(jsonStr);
+
+                                if (event.type === 'done') {
+                                    aiMsg.loading = false;
+                                    continue;
+                                }
+
+                                if (event.type === 'error') {
+                                    aiMsg.parts.push({ type: 'answer', content: event.content });
+                                    aiMsg.loading = false;
+                                    continue;
+                                }
+
+                                if (event.type === 'thinking') {
+                                    aiMsg.parts.push({
+                                        type: 'thinking',
+                                        content: event.content,
+                                        preview: previewText(event.content),
+                                        collapsed: true
+                                    });
+                                } else if (event.type === 'tool_call') {
+                                    aiMsg.parts.push({
+                                        type: 'tool_call',
+                                        toolName: event.toolName || '',
+                                        toolArgs: event.toolArgs || '',
+                                        collapsed: true
+                                    });
+                                } else if (event.type === 'tool_result') {
+                                    aiMsg.parts.push({
+                                        type: 'tool_result',
+                                        toolName: event.toolName || '',
+                                        content: event.content || '',
+                                        collapsed: true
+                                    });
+                                } else if (event.type === 'answer') {
+                                    const lastPart = aiMsg.parts[aiMsg.parts.length - 1];
+                                    if (lastPart && lastPart.type === 'answer') {
+                                        lastPart.content += event.content;
+                                    } else {
+                                        aiMsg.parts.push({ type: 'answer', content: event.content });
+                                    }
+                                }
+
+                                scrollToBottom();
+                            } catch (e) {
+                                console.warn('SSE parse error:', e, jsonStr);
+                            }
+                        }
+                    }
+
+                    aiMsg.loading = false;
+                } catch (error) {
+                    aiMsg.parts.push({ type: 'answer', content: '抱歉，处理失败，请重试。' });
+                    aiMsg.loading = false;
+                } finally {
+                    loading.value = false;
+                    scrollToBottom();
+                }
+            };
+
+            return { input, loading, chatMessages, messages, renderMarkdown, sendMessage };
+        }
+    }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>
