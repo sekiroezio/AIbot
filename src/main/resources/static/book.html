@@ -465,8 +465,9 @@
                 }
 
                 // AI消息对象，streamingText用于流式显示正在生成的文本
-                const aiMsg = { role: 'ai', parts: [], streamingText: '', loading: true };
-                msgs.push(aiMsg);
+                // 注意：push后必须从响应式数组取回代理对象，否则直接修改aiMsg不会触发Vue更新
+                msgs.push({ role: 'ai', parts: [], streamingText: '', loading: true });
+                const aiMsg = msgs[msgs.length - 1];
                 saveChats();
                 scrollToBottom();
 
