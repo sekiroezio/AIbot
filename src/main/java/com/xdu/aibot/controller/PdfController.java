@@ -18,9 +18,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
@@ -34,6 +37,9 @@ public class PdfController {
     private FileRepository fileService;
 
     private final ChatClient pdfChatClient;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Qualifier("chatHistoryServiceImpl")
     @Autowired
@@ -52,6 +58,45 @@ public class PdfController {
                 .advisors(a->a.param(QuestionAnswerAdvisor.FILTER_EXPRESSION, "file_name == '"+file.getFilename()+"'"))
                 .call()
                 .content();
+    }
+
+    /**
+     * 流式接口 — 使用 ChatClient.stream() + Flux<String>
+     * produces = "text/html;charset=utf-8" 保证 Servlet 容器下逐元素 flush
+     * 手动拼接 SSE 格式，前端用 fetch+ReadableStream 解析
+     *
+     * 事件类型：token（流式文本）/ answer（完整回答）/ done（结束）
+     */
+    @GetMapping(value = "/chat/stream", produces = "text/html;charset=utf-8")
+    public Flux<String> chatStream(String prompt, String chatId) {
+        Resource file = fileService.getFile(chatId);
+        if (!file.exists()){
+            return Flux.just(sseData(Map.of("type", "error", "content", "请先上传文件！")));
+        }
+        chatHistoryRepository.save(ChatType.PDF.getType(), chatId);
+
+        return pdfChatClient.prompt()
+                .user(prompt)
+                .advisors(a->a.param(ChatMemory.CONVERSATION_ID, chatId))
+                .advisors(a->a.param(QuestionAnswerAdvisor.FILTER_EXPRESSION, "file_name == '"+file.getFilename()+"'"))
+                .stream()
+                .content()
+                .map(chunk -> {
+                    if (chunk != null && !chunk.isEmpty()) {
+                        return sseData(Map.of("type", "token", "content", chunk));
+                    }
+                    return "";
+                })
+                .filter(s -> !s.isEmpty())
+                .concatWith(Flux.just(sseData(Map.of("type", "done"))));
+    }
+
+    private String sseData(Map<String, Object> data) {
+        try {
+            return "data: " + objectMapper.writeValueAsString(data) + "\n\n";
+        } catch (Exception e) {
+            return "data: {\"type\":\"unknown\"}\n\n";
+        }
     }
 
     /**
@@ -74,6 +119,12 @@ public class PdfController {
             log.error("Failed to upload PDF.", e);
             return Result.fail("上传文件失败！");
         }
+    }
+
+    @DeleteMapping("/chat/{chatId}")
+    public Map<String, Object> deleteChat(@PathVariable("chatId") String chatId) {
+        chatHistoryRepository.delete(ChatType.PDF.getType(), chatId);
+        return Map.of("success", true);
     }
 
     /**

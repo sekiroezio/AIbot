@@ -13,11 +13,9 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
-import jakarta.servlet.http.HttpServletResponse;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -49,24 +47,16 @@ public class CustomerServiceController {
     }
 
     /**
-     * 流式接口：返回 Flux<String>，每个元素是纯 JSON 字符串
-     * Spring MVC 会自动将每个 String 包装为 SSE 格式: data: {json}\n\n
+     * 流式接口 — Flux<String> + text/html
      *
-     * 事件类型：
-     * - token:       LLM 逐 token 流式输出（实时显示用）
-     * - thinking:    LLM 调用工具前的思考文本
-     * - tool_call:   工具调用（参数）
-     * - tool_result: 工具调用结果（紧跟对应的 tool_call 后面）
-     * - answer:      最终回答（Markdown 渲染）
-     * - done:        流结束
+     * 使用 produces = "text/html;charset=utf-8"（已在 StreamController 中验证可流式），
+     * 手动拼接 SSE 格式 "data: {json}\n\n"，前端用 fetch+ReadableStream 解析。
+     *
+     * 事件类型：token / thinking / tool_call / tool_result / answer / done
      */
-    @GetMapping(value = "/service/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> chatStream(String prompt, String chatId, HttpServletResponse response) throws GraphRunnerException {
+    @GetMapping(value = "/service/stream", produces = "text/html;charset=utf-8")
+    public Flux<String> chatStream(String prompt, String chatId) throws GraphRunnerException {
         chatHistoryRepository.save(ChatType.SERVICE.getType(), chatId);
-
-        // 禁用代理和浏览器缓冲，确保 SSE 实时推送
-        response.setHeader("Cache-Control", "no-cache");
-        response.setHeader("X-Accel-Buffering", "no");
 
         StringBuilder textBuffer = new StringBuilder();
         AtomicReference<Map<String, Map<String, String>>> pendingToolCalls = new AtomicReference<>(new LinkedHashMap<>());
@@ -80,14 +70,14 @@ public class CustomerServiceController {
                     OutputType outputType = streamingOutput.getOutputType();
                     if (outputType == null) return Flux.empty();
 
-                    List<String> jsonEvents = new ArrayList<>();
+                    List<String> sseEvents = new ArrayList<>();
 
                     switch (outputType) {
                         case AGENT_MODEL_STREAMING -> {
                             String chunk = streamingOutput.chunk();
                             if (chunk != null && !chunk.isEmpty()) {
                                 textBuffer.append(chunk);
-                                jsonEvents.add(toJson(Map.of("type", "token", "content", chunk)));
+                                sseEvents.add(sseData(Map.of("type", "token", "content", chunk)));
                             }
                         }
                         case AGENT_MODEL_FINISHED -> {
@@ -97,7 +87,7 @@ public class CustomerServiceController {
                                     String thinkingText = textBuffer.toString().trim();
                                     textBuffer.setLength(0);
                                     if (!thinkingText.isEmpty()) {
-                                        jsonEvents.add(toJson(Map.of("type", "thinking", "content", thinkingText)));
+                                        sseEvents.add(sseData(Map.of("type", "thinking", "content", thinkingText)));
                                     }
 
                                     Map<String, Map<String, String>> pending = pendingToolCalls.get();
@@ -113,7 +103,7 @@ public class CustomerServiceController {
                                         }
 
                                         pending.put(callId, Map.of("toolName", toolName, "toolArgs", toolArgs));
-                                        jsonEvents.add(toJson(Map.of(
+                                        sseEvents.add(sseData(Map.of(
                                                 "type", "tool_call",
                                                 "id", callId,
                                                 "toolName", toolName,
@@ -124,7 +114,7 @@ public class CustomerServiceController {
                                     String answerText = assistantMsg.getText();
                                     textBuffer.setLength(0);
                                     if (answerText != null && !answerText.isEmpty()) {
-                                        jsonEvents.add(toJson(Map.of("type", "answer", "content", answerText)));
+                                        sseEvents.add(sseData(Map.of("type", "answer", "content", answerText)));
                                     }
                                 }
                             }
@@ -156,7 +146,7 @@ public class CustomerServiceController {
                                         }
                                     }
 
-                                    jsonEvents.add(toJson(Map.of(
+                                    sseEvents.add(sseData(Map.of(
                                             "type", "tool_result",
                                             "id", respId != null ? respId : "",
                                             "toolName", toolName,
@@ -168,20 +158,20 @@ public class CustomerServiceController {
                         default -> {}
                     }
 
-                    return Flux.fromIterable(jsonEvents);
+                    return Flux.fromIterable(sseEvents);
                 })
-                .concatWith(Flux.just(toJson(Map.of("type", "done"))))
+                .concatWith(Flux.just(sseData(Map.of("type", "done"))))
                 .onErrorResume(error -> {
                     log.error("Agent流式调用失败: {}", error.getMessage(), error);
-                    return Flux.just(toJson(Map.of("type", "error", "content", "处理出错，请重试")));
+                    return Flux.just(sseData(Map.of("type", "error", "content", "处理出错，请重试")));
                 });
     }
 
-    private String toJson(Map<String, Object> data) {
+    private String sseData(Map<String, Object> data) {
         try {
-            return objectMapper.writeValueAsString(data);
+            return "data: " + objectMapper.writeValueAsString(data) + "\n\n";
         } catch (Exception e) {
-            return "{\"type\":\"unknown\"}";
+            return "data: {\"type\":\"unknown\"}\n\n";
         }
     }
 
