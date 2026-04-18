@@ -333,7 +333,7 @@
                 <!-- 输入区域 -->
                 <div class="input-area">
                     <div class="input-wrapper">
-                        <input v-model="input" placeholder="输入问题，如：想借豆瓣评分最高的欧美文学..."
+                        <input v-model="input" placeholder="输入问题，如：我想看科幻小说，有什么推荐的吗..."
                                @keyup.enter="sendMessage" :disabled="loading">
                         <button class="send-btn" @click="sendMessage" :disabled="loading || !input.trim()">发送</button>
                     </div>
@@ -407,7 +407,7 @@
                 allMessages.value[id] = [
                     {
                         role: 'ai',
-                        parts: [{ type: 'answer', content: '您好！我是图书馆智能借阅助手"小图"📚\n\n我可以帮您查询馆藏书籍、搜索网络评分信息、预约借书。试试问我：\n- "想借豆瓣评分最高的欧美文学"\n- "有没有刘慈欣的书"\n- "帮我预约《三体》"' }],
+                        parts: [{ type: 'answer', content: '您好！我是图书馆智能借阅助手"小图"📚\n\n我可以帮您查询馆藏书籍、搜索网络评分信息、预约借书。试试问我：\n- "想借豆瓣评分最高的欧美文学"\n- "有没有马尔克斯的书"\n- "帮我预约《三体》"' }],
                         loading: false
                     }
                 ];

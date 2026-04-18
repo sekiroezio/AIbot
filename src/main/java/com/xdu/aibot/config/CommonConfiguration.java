@@ -11,12 +11,8 @@ import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.ChatClientRequest;
-import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
-import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
-import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
@@ -31,7 +27,6 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.neo4j.Neo4jVectorStore;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -47,21 +42,26 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 @EnableConfigurationProperties(AibotProperties.class)
 public class CommonConfiguration {
 
-    @Value("${spring.neo4j.uri}")
-    private String neo4jUri;
-    @Value("${spring.neo4j.authentication.password}")
-    private String neo4jPassword;
-    @Value("${spring.neo4j.authentication.username}")
-    private String neo4jUsername;
+    private final String neo4jUri;
+    private final String neo4jPassword;
+    private final String neo4jUsername;
+    private final String chatModelType;
+    private final RedissonRedisChatMemoryRepository redisChatMemoryRepository;
+    private final AibotProperties aibotProperties;
 
-    @Value("${aibot.chat-model-type:cloud}")
-    private String chatModelType;
-
-    @Autowired
-    private RedissonRedisChatMemoryRepository redisChatMemoryRepository;
-
-    @Autowired
-    private AibotProperties aibotProperties;
+    public CommonConfiguration(@Value("${spring.neo4j.uri}") String neo4jUri,
+                               @Value("${spring.neo4j.authentication.password}") String neo4jPassword,
+                               @Value("${spring.neo4j.authentication.username}") String neo4jUsername,
+                               @Value("${aibot.chat-model-type:cloud}") String chatModelType,
+                               RedissonRedisChatMemoryRepository redisChatMemoryRepository,
+                               AibotProperties aibotProperties) {
+        this.neo4jUri = neo4jUri;
+        this.neo4jPassword = neo4jPassword;
+        this.neo4jUsername = neo4jUsername;
+        this.chatModelType = chatModelType;
+        this.redisChatMemoryRepository = redisChatMemoryRepository;
+        this.aibotProperties = aibotProperties;
+    }
 
     @Bean
     public SmartInitializingSingleton entityVectorIndexInitializer(Driver driver) {
@@ -94,9 +94,8 @@ public class CommonConfiguration {
         return openAiChatModel;
     }
 
-
     @Bean
-    public VectorStore mySimpleVectorStore(@Qualifier("openAiEmbeddingModel")OpenAiEmbeddingModel embeddingModel) {
+    public VectorStore mySimpleVectorStore(@Qualifier("openAiEmbeddingModel") OpenAiEmbeddingModel embeddingModel) {
         return SimpleVectorStore.builder(embeddingModel).build();
     }
 
@@ -169,22 +168,7 @@ public class CommonConfiguration {
                                                 .topK(3)
                                                 .build()
                                 ).build(),
-                        new GraphRagAdvisor(neo4jClient, driver, embeddingModel, aibotProperties),
-                        new CallAdvisor() {
-                            @Override
-                            public String getName() { return "TrapAdvisor"; }
-                            @Override
-                            public int getOrder() { return 2; }
-
-                            @Override
-                            public ChatClientResponse adviseCall(ChatClientRequest request, CallAdvisorChain chain) {
-                                String lastPrompt = request.prompt().getUserMessage().getText();
-                                System.out.println("====== 增强后的最终 Prompt ======");
-                                System.out.println(lastPrompt);
-                                System.out.println("==================================");
-                                return chain.nextCall(request);
-                            }
-                        }
+                        new GraphRagAdvisor(neo4jClient, driver, embeddingModel, aibotProperties)
                 )
                 .build();
     }
