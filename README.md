@@ -4,19 +4,28 @@
 
 ## 功能特性
 
+![](navigator_screenshot.png)
+
 ### 🕸️ GraphRAG 知识图谱阅读助手
 - 上传 PDF 文档，自动构建知识图谱并可视化展示
 - 基于 LLM 的实体与关系抽取
 - 向量检索 + 关键词检索的混合种子实体发现
 - 多跳图谱遍历增强 RAG 问答
 - 支持流式输出（SSE）
+- ![](graphrag_screenshot.png)
 
 ### 📚 图书馆预约助手
 - 基于 ReAct Agent 的多步推理与工具编排
+
 - 通过 MCP 协议集成图书查询与预约工具
+
 - 支持 Tavily 网络搜索获取豆瓣评分等外部信息
+
 - 基于 Redis 的 Agent 记忆持久化
+
 - 支持流式输出，展示思维链和工具调用过程
+
+  ![](library_screenshot.png)
 
 ## 技术栈
 
