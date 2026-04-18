@@ -1,7 +1,8 @@
 package com.xdu.aibot.config;
 
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
-import com.alibaba.cloud.ai.graph.checkpoint.savers.MemorySaver;
+import com.alibaba.cloud.ai.graph.checkpoint.savers.redis.RedisSaver;
+import com.alibaba.cloud.ai.graph.serializer.std.SpringAIStateSerializer;
 import com.alibaba.cloud.ai.memory.redis.RedissonRedisChatMemoryRepository;
 import com.xdu.aibot.advisor.GraphRagAdvisor;
 import com.xdu.aibot.constant.SystemConstants;
@@ -38,6 +39,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.neo4j.core.Neo4jClient;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 
 @Slf4j
@@ -119,13 +121,13 @@ public class CommonConfiguration {
     }
 
     @Bean
-    public ReactAgent bookAgent(ChatModel chatModel, ToolCallbackProvider tools) {
+    public ReactAgent bookAgent(ChatModel chatModel, ToolCallbackProvider tools, RedissonClient redissonClient) {
         return ReactAgent.builder()
                 .name("book-assistant")
                 .model(chatModel)
                 .instruction(SystemConstants.SERVICE_PROMPT)
                 .toolCallbackProviders(tools)
-                .saver(new MemorySaver())
+                .saver(RedisSaver.builder().redisson(redissonClient).stateSerializer(new SpringAIStateSerializer()).build())
                 .enableLogging(true)
                 .build();
     }
