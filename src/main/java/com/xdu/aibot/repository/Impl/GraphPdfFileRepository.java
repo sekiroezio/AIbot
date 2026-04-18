@@ -4,9 +4,8 @@ import com.xdu.aibot.config.AibotProperties;
 import com.xdu.aibot.pojo.entity.Entity;
 import com.xdu.aibot.pojo.entity.Relationship;
 import com.xdu.aibot.repository.FileRepository;
-import com.xdu.aibot.service.ExtractionResult;
-import com.xdu.aibot.service.LLMEntityExtractor;
-import lombok.RequiredArgsConstructor;
+import com.xdu.aibot.pojo.entity.ExtractionResult;
+import com.xdu.aibot.service.impl.LLMEntityExtractor;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Values;
@@ -15,9 +14,7 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.reader.ExtractedTextFormatter;
 import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
 import org.springframework.ai.reader.pdf.config.PdfDocumentReaderConfig;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -32,26 +29,28 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service("graphPdfFileRepository")
-@RequiredArgsConstructor
 public class GraphPdfFileRepository implements FileRepository {
 
-    @Autowired
-    @Qualifier("customNeo4jVectorStore")
-    private VectorStore vectorStore;
-
+    private final VectorStore vectorStore;
     private final Neo4jClient neo4jClient;
-
     private final Driver driver;
+    private final LLMEntityExtractor llmEntityExtractor;
+    private final AibotProperties aibotProperties;
+    private final EmbeddingModel embeddingModel;
 
-    @Autowired
-    private LLMEntityExtractor llmEntityExtractor;
-
-    @Autowired
-    private AibotProperties aibotProperties;
-
-    @Qualifier("openAiEmbeddingModel")
-    @Autowired
-    private EmbeddingModel embeddingModel;
+    public GraphPdfFileRepository(@Qualifier("customNeo4jVectorStore") VectorStore vectorStore,
+                                  Neo4jClient neo4jClient,
+                                  Driver driver,
+                                  LLMEntityExtractor llmEntityExtractor,
+                                  AibotProperties aibotProperties,
+                                  @Qualifier("openAiEmbeddingModel") EmbeddingModel embeddingModel) {
+        this.vectorStore = vectorStore;
+        this.neo4jClient = neo4jClient;
+        this.driver = driver;
+        this.llmEntityExtractor = llmEntityExtractor;
+        this.aibotProperties = aibotProperties;
+        this.embeddingModel = embeddingModel;
+    }
 
     @Override
     public boolean save(String chatId, Resource resource) {

@@ -9,9 +9,8 @@ import org.neo4j.driver.Record;
 import org.neo4j.driver.Values;
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
-import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
-import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
-import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.client.advisor.api.AdvisorChain;
+import org.springframework.ai.chat.client.advisor.api.BaseAdvisor;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.data.neo4j.core.Neo4jClient;
@@ -20,7 +19,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class GraphRagAdvisor implements CallAdvisor {
+public class GraphRagAdvisor implements BaseAdvisor {
 
     private final Neo4jClient neo4jClient;
     private final Driver driver;
@@ -45,12 +44,11 @@ public class GraphRagAdvisor implements CallAdvisor {
     }
 
     @Override
-    public ChatClientResponse adviseCall(ChatClientRequest request, CallAdvisorChain chain) {
-
+    public ChatClientRequest before(ChatClientRequest request, AdvisorChain chain) {
         List<Document> documents = findDocumentsInContext(request.context());
 
         if (documents == null || documents.isEmpty()) {
-            return chain.nextCall(request);
+            return request;
         }
 
         String chatId;
@@ -60,7 +58,7 @@ public class GraphRagAdvisor implements CallAdvisor {
         if (metadataChatId != null) {
             chatId = metadataChatId.toString();
         } else {
-            return chain.nextCall(request);
+            return request;
         }
 
         String mixedContent = request.prompt().getUserMessage().getText();
@@ -69,14 +67,14 @@ public class GraphRagAdvisor implements CallAdvisor {
         Set<String> seedNames = findSeedEntities(userQuestion, chatId);
         if (seedNames.isEmpty()) {
             log.info("GraphRAG: 未找到根实体，跳过图谱增强");
-            return chain.nextCall(request);
+            return request;
         }
 
         log.info("GraphRAG: 根实体集合: {}", seedNames);
 
         List<Map<String, String>> relations = multiHopTraversal(seedNames, chatId);
         if (relations.isEmpty()) {
-            return chain.nextCall(request);
+            return request;
         }
 
         Set<String> entityNames = new LinkedHashSet<>();
@@ -91,21 +89,23 @@ public class GraphRagAdvisor implements CallAdvisor {
 
         String appendText = "\n\n【知识图谱信息】\n" + graphContext;
 
-        Prompt updatedPrompt = request.prompt().augmentUserMessage(userMessage -> {
-            String originalText = userMessage.getText();
-            return userMessage.mutate()
-                    .text(originalText + appendText)
-                    .build();
-        });
-
-        ChatClientRequest updatedRequest = ChatClientRequest.builder()
-                .prompt(updatedPrompt)
-                .context(Map.copyOf(request.context()))
+        ChatClientRequest updatedRequest = request.mutate()
+                .prompt(request.prompt().augmentUserMessage(userMessage -> {
+                    String originalText = userMessage.getText();
+                    return userMessage.mutate()
+                            .text(originalText + appendText)
+                            .build();
+                }))
                 .build();
 
         log.info("GraphRAG: 已注入 {} 条图谱关系, {} 个实体", relations.size(), entityNames.size());
 
-        return chain.nextCall(updatedRequest);
+        return updatedRequest;
+    }
+
+    @Override
+    public ChatClientResponse after(ChatClientResponse response, AdvisorChain chain) {
+        return response;
     }
 
     private String extractUserQuestion(String mixedContent) {

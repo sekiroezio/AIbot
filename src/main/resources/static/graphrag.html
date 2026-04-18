@@ -30,8 +30,8 @@
 
         .app-layout { display: grid; grid-template-columns: 1fr 1fr; height: 100vh; }
 
-        .left-panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg-primary); }
-        .right-panel { display: flex; flex-direction: column; background: var(--bg-primary); }
+        .left-panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg-primary); min-height: 0; overflow: hidden; }
+        .right-panel { display: flex; flex-direction: column; background: var(--bg-primary); min-height: 0; overflow: hidden; }
 
         .panel-header {
             padding: 14px 24px; background: var(--bg-primary);
@@ -104,7 +104,7 @@
         }
 
         /* 输入区域 */
-        .input-area { padding: 16px 24px 24px; background: var(--bg-primary); }
+        .input-area { padding: 16px 24px 24px; background: var(--bg-primary); flex-shrink: 0; }
         .input-wrapper {
             display: flex; align-items: center; background: var(--bg-primary);
             border: 1px solid var(--border); border-radius: 12px; overflow: hidden;

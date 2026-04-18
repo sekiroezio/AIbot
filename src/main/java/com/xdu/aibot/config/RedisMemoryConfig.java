@@ -11,12 +11,17 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RedisMemoryConfig {
 
-    @Value("${spring.data.redis.host}")
-    private String redisHost;
-    @Value("${spring.data.redis.port}")
-    private int redisPort;
-    @Value("${spring.data.redis.password}")
-    private String redisPassword;
+    private final String redisHost;
+    private final int redisPort;
+    private final String redisPassword;
+
+    public RedisMemoryConfig(@Value("${spring.data.redis.host}") String redisHost,
+                             @Value("${spring.data.redis.port}") int redisPort,
+                             @Value("${spring.data.redis.password}") String redisPassword) {
+        this.redisHost = redisHost;
+        this.redisPort = redisPort;
+        this.redisPassword = redisPassword;
+    }
 
     /**
      * 共享的 RedissonClient，供 RedisSaver（ReactAgent记忆）等组件使用
