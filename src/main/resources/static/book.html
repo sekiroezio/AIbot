@@ -183,6 +183,11 @@
         .step-tool { background: #dbeafe; color: #1e40af; }
         .step-result { background: #dcfce7; color: #166534; }
 
+        /* 流式文本（正在生成中） */
+        .streaming-text {
+            color: var(--text-secondary); font-style: italic;
+        }
+
         /* 输入区域 */
         .input-area { padding: 16px 24px 24px; background: var(--bg-primary); }
         .input-wrapper {
@@ -307,6 +312,8 @@
                                     <!-- 最终回答（渲染Markdown） -->
                                     <div v-else-if="part.type === 'answer'" v-html="renderMarkdown(part.content)"></div>
                                 </template>
+                                <!-- 流式文本缓冲（正在输出中的文本，暂时显示） -->
+                                <div v-if="msg.streamingText" class="streaming-text">{{ msg.streamingText }}▌</div>
                                 <div v-if="msg.loading" class="loading">
                                     <div class="loading-dots"><span></span><span></span><span></span></div>
                                 </div>
@@ -377,8 +384,19 @@
 
             const saveChats = () => {
                 try {
+                    // 保存时去掉streamingText等临时字段
+                    const msgsCopy = {};
+                    for (const [k, v] of Object.entries(allMessages.value)) {
+                        msgsCopy[k] = v.map(m => {
+                            if (m.role === 'ai') {
+                                const { streamingText, ...rest } = m;
+                                return rest;
+                            }
+                            return m;
+                        });
+                    }
                     localStorage.setItem('book_chat_list', JSON.stringify(chatList.value));
-                    localStorage.setItem('book_chat_messages', JSON.stringify(allMessages.value));
+                    localStorage.setItem('book_chat_messages', JSON.stringify(msgsCopy));
                 } catch (e) { console.warn('保存对话历史失败:', e); }
             };
 
@@ -446,7 +464,8 @@
                     chatItem.label = question.substring(0, 20) + (question.length > 20 ? '...' : '');
                 }
 
-                const aiMsg = { role: 'ai', parts: [], loading: true };
+                // AI消息对象，streamingText用于流式显示正在生成的文本
+                const aiMsg = { role: 'ai', parts: [], streamingText: '', loading: true };
                 msgs.push(aiMsg);
                 saveChats();
                 scrollToBottom();
@@ -475,6 +494,7 @@
 
                                 if (event.type === 'done') {
                                     aiMsg.loading = false;
+                                    aiMsg.streamingText = '';
                                     saveChats();
                                     continue;
                                 }
@@ -482,12 +502,22 @@
                                 if (event.type === 'error') {
                                     aiMsg.parts.push({ type: 'answer', content: event.content });
                                     aiMsg.loading = false;
+                                    aiMsg.streamingText = '';
                                     saveChats();
                                     continue;
                                 }
 
+                                // 流式token — 实时显示正在生成的文本
+                                if (event.type === 'token') {
+                                    aiMsg.streamingText = (aiMsg.streamingText || '') + event.content;
+                                    scrollToBottom();
+                                    continue;
+                                }
+
+                                // 非token事件到达时，清除streamingText（避免重复显示）
+                                aiMsg.streamingText = '';
+
                                 if (event.type === 'thinking') {
-                                    // 后端已合并完整文本，直接展示
                                     aiMsg.parts.push({
                                         type: 'thinking',
                                         content: event.content,
@@ -497,19 +527,42 @@
                                 } else if (event.type === 'tool_call') {
                                     aiMsg.parts.push({
                                         type: 'tool_call',
+                                        id: event.id || '',
                                         toolName: event.toolName || '',
                                         toolArgs: event.toolArgs || '',
                                         collapsed: true
                                     });
                                 } else if (event.type === 'tool_result') {
-                                    aiMsg.parts.push({
-                                        type: 'tool_result',
-                                        toolName: event.toolName || '',
-                                        content: event.content || '',
-                                        collapsed: true
-                                    });
+                                    // 尝试通过id配对到前面的tool_call，放在其后紧邻位置
+                                    const resultId = event.id || '';
+                                    let inserted = false;
+                                    if (resultId) {
+                                        for (let i = aiMsg.parts.length - 1; i >= 0; i--) {
+                                            if (aiMsg.parts[i].type === 'tool_call' && aiMsg.parts[i].id === resultId) {
+                                                aiMsg.parts.splice(i + 1, 0, {
+                                                    type: 'tool_result',
+                                                    id: resultId,
+                                                    toolName: event.toolName || '',
+                                                    content: event.content || '',
+                                                    collapsed: true
+                                                });
+                                                inserted = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if (!inserted) {
+                                        aiMsg.parts.push({
+                                            type: 'tool_result',
+                                            id: resultId,
+                                            toolName: event.toolName || '',
+                                            content: event.content || '',
+                                            collapsed: true
+                                        });
+                                    }
                                 } else if (event.type === 'answer') {
-                                    // 最终回答，拼接内容并渲染Markdown
+                                    // 最终回答，直接渲染Markdown，清除streamingText
+                                    aiMsg.streamingText = '';
                                     const lastPart = aiMsg.parts[aiMsg.parts.length - 1];
                                     if (lastPart && lastPart.type === 'answer') {
                                         lastPart.content += event.content;
@@ -526,10 +579,12 @@
                     }
 
                     aiMsg.loading = false;
+                    aiMsg.streamingText = '';
                     saveChats();
                 } catch (error) {
                     aiMsg.parts.push({ type: 'answer', content: '抱歉，处理失败，请重试。' });
                     aiMsg.loading = false;
+                    aiMsg.streamingText = '';
                     saveChats();
                 } finally {
                     loading.value = false;
