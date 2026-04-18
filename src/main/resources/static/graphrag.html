@@ -319,6 +319,7 @@
             // === 持久化 ===
             const STORAGE_KEY_LIST = 'graphrag_chat_list';
             const STORAGE_KEY_MSGS = 'graphrag_chat_messages';
+            const STORAGE_KEY_HAS_FILE = 'graphrag_has_file';
 
             const saveChats = () => {
                 try {
@@ -334,6 +335,7 @@
                     }
                     localStorage.setItem(STORAGE_KEY_LIST, JSON.stringify(chatList.value));
                     localStorage.setItem(STORAGE_KEY_MSGS, JSON.stringify(msgsCopy));
+                    localStorage.setItem(STORAGE_KEY_HAS_FILE, JSON.stringify(tabHasFile.value));
                 } catch (e) { console.warn('保存对话历史失败:', e); }
             };
 
@@ -343,6 +345,8 @@
                     if (saved) chatList.value = JSON.parse(saved);
                     const savedMsgs = localStorage.getItem(STORAGE_KEY_MSGS);
                     if (savedMsgs) allMessages.value = JSON.parse(savedMsgs);
+                    const savedHasFile = localStorage.getItem(STORAGE_KEY_HAS_FILE);
+                    if (savedHasFile) tabHasFile.value = JSON.parse(savedHasFile);
                 } catch (e) { console.warn('加载对话历史失败:', e); }
                 fetchChatIds();
             };
@@ -353,14 +357,25 @@
                     const serverIds = await resp.json();
                     for (const sid of serverIds) {
                         if (!chatList.value.find(c => c.id === sid)) {
-                            chatList.value.push({ id: sid, label: '对话 ' + sid.substring(5, 13) });
+                            chatList.value.push({ id: sid, label: '对话 ' + sid.substring(2, 10) });
+                        }
+                        // 服务端有记录的对话一定已上传文件
+                        if (!tabHasFile.value[sid]) {
+                            tabHasFile.value[sid] = true;
                         }
                     }
                     saveChats();
+
+                    // 对所有有文件的对话，从服务端加载图谱数据
+                    for (const chatId of Object.keys(tabHasFile.value)) {
+                        if (tabHasFile.value[chatId]) {
+                            loadGraphData(chatId);
+                        }
+                    }
                 } catch (e) { console.warn('加载服务端对话ID失败:', e); }
             };
 
-            const generateChatId = () => 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+            const generateChatId = () => '2_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
 
             const newChat = () => {
                 const id = generateChatId();
@@ -495,9 +510,12 @@
                 try {
                     const response = await fetch(`/ai/graph/${chatId}`);
                     const data = await response.json();
-                    tabGraphData.value[chatId] = data;
-                    if (currentChatId.value === chatId) {
-                        nextTick(() => renderCurrentGraph());
+                    // 只有存在节点数据时才更新（避免空数据覆盖）
+                    if (data && data.nodes && data.nodes.length > 0) {
+                        tabGraphData.value[chatId] = data;
+                        if (currentChatId.value === chatId) {
+                            nextTick(() => renderCurrentGraph());
+                        }
                     }
                 } catch (error) {
                     console.error('图谱数据加载失败:', error);
@@ -529,12 +547,29 @@
                     }
                 }));
 
-                const edges = data.edges.map(e => ({
-                    source: e.source,
-                    target: e.target,
-                    lineStyle: { color: '#bbb', width: 1.5, curveness: 0.15 },
-                    label: { show: true, formatter: e.name, fontSize: 9, color: '#888' }
-                }));
+                // 检测双向边：同一对节点间如果有两条边，给其中一条反方向弯曲避免标签重叠
+                const pairCount = {};
+                data.edges.forEach(e => {
+                    const key = [e.source, e.target].sort().join('|||');
+                    pairCount[key] = (pairCount[key] || 0) + 1;
+                });
+                const pairSeen = {};
+
+                const edges = data.edges.map(e => {
+                    const key = [e.source, e.target].sort().join('|||');
+                    let curveness = 0.15;
+                    if (pairCount[key] > 1) {
+                        // 双向边：第二条反向弯曲
+                        pairSeen[key] = (pairSeen[key] || 0) + 1;
+                        curveness = pairSeen[key] % 2 === 1 ? 0.3 : -0.3;
+                    }
+                    return {
+                        source: e.source,
+                        target: e.target,
+                        lineStyle: { color: '#bbb', width: 1.5, curveness },
+                        label: { show: true, formatter: e.name, fontSize: 9, color: '#888' }
+                    };
+                });
 
                 graphChart.setOption({
                     backgroundColor: '#f7f7f8',

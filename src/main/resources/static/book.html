@@ -376,7 +376,7 @@
                     const serverIds = await resp.json();
                     for (const sid of serverIds) {
                         if (!chatList.value.find(c => c.id === sid)) {
-                            chatList.value.push({ id: sid, label: '对话 ' + sid.substring(5, 13) });
+                            chatList.value.push({ id: sid, label: '对话 ' + sid.substring(2, 10) });
                         }
                     }
                     saveChats();
@@ -402,7 +402,7 @@
             };
 
             const newChat = () => {
-                const id = 'book_' + Date.now();
+                const id = '1_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
                 chatList.value.unshift({ id, label: '新对话' });
                 allMessages.value[id] = [
                     {
