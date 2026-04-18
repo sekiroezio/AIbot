@@ -114,7 +114,7 @@ public class CommonConfiguration {
         return Neo4jVectorStore.builder(driver, embeddingModel)
                 .databaseName("neo4j")
                 .distanceType(Neo4jVectorStore.Neo4jDistanceType.COSINE)
-                .embeddingDimension(1536)
+                .embeddingDimension(1024)
                 .label("Document")
                 .embeddingProperty("embedding")
                 .indexName("custom-index")
@@ -184,7 +184,7 @@ public class CommonConfiguration {
                                 String lastPrompt = request.prompt().getUserMessage().getText();
                                 System.out.println("====== 增强后的最终 Prompt ======");
                                 System.out.println(lastPrompt);
-                                System.out.println("==================================");
+                                System.out.println("================================");
                                 return request;
                             }
 

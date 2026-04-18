@@ -2,7 +2,7 @@ aibot:
   chat-model-type: cloud
   graph:
     entity-vector-index-name: entity_embeddings
-    entity-vector-dimension: 1536
+    entity-vector-dimension: 1024
     search-top-k: 2
     search-similarity-threshold: 0.5
     traversal-depth: 2
@@ -57,7 +57,7 @@ spring:
         initialize-schema: true
         database-name: neo4j
         index-name: custom-index
-        embedding-dimension: 1536
+        embedding-dimension: 1024
         distance-type: cosine
     dashscope:
       api-key: ${DASHSCOPE_API_KEY}
@@ -66,12 +66,12 @@ spring:
       api-key: ${DASHSCOPE_API_KEY}
       chat:
         options:
-          model: qwen-max
+          model: qwen3.6-plus
           temperature: 0.7
       embedding:
         options:
-          model: text-embedding-v4
-          dimensions: 1536
+          model: text-embedding-v3
+          dimensions: 1024
     ollama:
       base-url: http://localhost:11434
       chat:

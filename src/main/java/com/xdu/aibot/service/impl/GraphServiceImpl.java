@@ -31,7 +31,7 @@ public class GraphServiceImpl implements GraphService {
                 RETURN n.name AS source, n.entityType AS sourceType, n.description AS sourceDesc,
                        coalesce(r.name, type(r)) AS relName, type(r) AS relType,
                        m.name AS target, m.entityType AS targetType, m.description AS targetDesc
-                LIMIT 100
+                LIMIT 1000
                 """)
                 .bind(chatId).to("chatId")
                 .fetch()
