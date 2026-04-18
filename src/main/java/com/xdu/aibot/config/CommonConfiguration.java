@@ -1,6 +1,7 @@
 package com.xdu.aibot.config;
 
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
+import com.alibaba.cloud.ai.graph.checkpoint.savers.MemorySaver;
 import com.alibaba.cloud.ai.memory.redis.RedissonRedisChatMemoryRepository;
 import com.xdu.aibot.advisor.GraphRagAdvisor;
 import com.xdu.aibot.constant.SystemConstants;
@@ -124,6 +125,7 @@ public class CommonConfiguration {
                 .model(chatModel)
                 .instruction(SystemConstants.SERVICE_PROMPT)
                 .toolCallbackProviders(tools)
+                .saver(new MemorySaver())
                 .enableLogging(true)
                 .build();
     }
