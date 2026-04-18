@@ -8,19 +8,18 @@ import com.xdu.aibot.repository.ChatHistoryRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @RestController
@@ -49,6 +48,13 @@ public class CustomerServiceController {
         }
     }
 
+    /**
+     * 流式接口：使用状态机缓冲文本，确保：
+     * 1. 连续的纯文本token合并后再输出
+     * 2. 工具调用前的文本 -> thinking
+     * 3. tool_call 紧跟 tool_result 成对输出
+     * 4. 最后的文本 -> answer（最终回答）
+     */
     @RequestMapping(value = "/service/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chatStream(String prompt, String chatId) {
         chatHistoryRepository.save(ChatType.SERVICE.getType(), chatId);
@@ -56,30 +62,90 @@ public class CustomerServiceController {
         SseEmitter emitter = new SseEmitter(300000L);
 
         new Thread(() -> {
+            // 文本缓冲区：收集连续的纯文本token
+            StringBuilder textBuffer = new StringBuilder();
+            // 标记是否已经输出过工具调用（用于区分中间文本是thinking还是最后的answer）
+            AtomicBoolean hasToolCall = new AtomicBoolean(false);
+
             try {
                 Flux<Message> messageFlux = bookAgent.streamMessages(prompt);
                 messageFlux.subscribe(
                         message -> {
                             try {
-                                Map<String, Object> event = buildEvent(message);
-                                String json = objectMapper.writeValueAsString(event);
-                                emitter.send(SseEmitter.event().data(json));
-                            } catch (IOException e) {
-                                emitter.completeWithError(e);
+                                if (message instanceof AssistantMessage assistantMsg) {
+                                    if (assistantMsg.hasToolCalls()) {
+                                        // --- 遇到工具调用 ---
+
+                                        // 1. 先把缓冲的文本作为"思考"输出
+                                        flushText(emitter, textBuffer, "thinking");
+
+                                        // 2. 输出工具调用
+                                        hasToolCall.set(true);
+                                        for (var toolCall : assistantMsg.getToolCalls()) {
+                                            Map<String, Object> event = new HashMap<>();
+                                            event.put("type", "tool_call");
+                                            event.put("toolName", toolCall.name());
+                                            try {
+                                                Object parsed = objectMapper.readValue(toolCall.arguments(), Object.class);
+                                                event.put("toolArgs", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(parsed));
+                                            } catch (Exception e) {
+                                                event.put("toolArgs", toolCall.arguments());
+                                            }
+                                            sendEvent(emitter, event);
+                                        }
+                                    } else {
+                                        // --- 纯文本token：缓冲起来 ---
+                                        String text = assistantMsg.getText();
+                                        if (text != null) {
+                                            textBuffer.append(text);
+                                        }
+                                    }
+                                } else if (message instanceof ToolResponseMessage toolResp) {
+                                    // --- 工具结果：紧跟工具调用输出 ---
+                                    for (var resp : toolResp.getResponses()) {
+                                        Map<String, Object> event = new HashMap<>();
+                                        event.put("type", "tool_result");
+                                        event.put("toolName", resp.name());
+                                        try {
+                                            Object parsed = objectMapper.readValue(String.valueOf(resp.responseData()), Object.class);
+                                            event.put("content", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(parsed));
+                                        } catch (Exception e) {
+                                            event.put("content", String.valueOf(resp.responseData()));
+                                        }
+                                        sendEvent(emitter, event);
+                                    }
+                                }
+                                // 忽略 UserMessage 等其他类型
+                            } catch (Exception e) {
+                                log.error("处理消息失败: {}", e.getMessage(), e);
                             }
                         },
                         error -> {
                             log.error("Agent流式调用失败: {}", error.getMessage(), error);
                             try {
+                                // 刷新剩余文本
+                                flushText(emitter, textBuffer, "answer");
                                 Map<String, Object> errEvent = Map.of("type", "error", "content", "处理出错，请重试");
-                                emitter.send(SseEmitter.event().data(objectMapper.writeValueAsString(errEvent)));
+                                sendEvent(emitter, errEvent);
                             } catch (Exception ignored) {}
                             emitter.completeWithError(error);
                         },
                         () -> {
                             try {
-                                emitter.send(SseEmitter.event().data(objectMapper.writeValueAsString(Map.of("type", "done"))));
-                            } catch (Exception ignored) {}
+                                // 流结束：把剩余文本作为最终回答输出
+                                if (textBuffer.length() > 0) {
+                                    if (hasToolCall.get()) {
+                                        // 有过工具调用，最后的文本是最终回答
+                                        flushText(emitter, textBuffer, "answer");
+                                    } else {
+                                        // 没有工具调用，整段都是回答
+                                        flushText(emitter, textBuffer, "answer");
+                                    }
+                                }
+                                sendEvent(emitter, Map.of("type", "done"));
+                            } catch (Exception e) {
+                                log.error("完成事件发送失败: {}", e.getMessage(), e);
+                            }
                             emitter.complete();
                         }
                 );
@@ -92,40 +158,29 @@ public class CustomerServiceController {
         return emitter;
     }
 
-    private Map<String, Object> buildEvent(Message message) {
+    /**
+     * 将缓冲区文本作为指定类型的事件输出，然后清空缓冲区
+     */
+    private void flushText(SseEmitter emitter, StringBuilder textBuffer, String type) throws IOException {
+        if (textBuffer.length() == 0) return;
+        String text = textBuffer.toString().trim();
+        textBuffer.setLength(0);
+        if (text.isEmpty()) return;
+
         Map<String, Object> event = new HashMap<>();
+        event.put("type", type);
+        event.put("content", text);
+        sendEvent(emitter, event);
+    }
 
-        if (message instanceof AssistantMessage assistantMsg) {
-            if (assistantMsg.hasToolCalls()) {
-                event.put("type", "tool_call");
-                var toolCall = assistantMsg.getToolCalls().get(0);
-                event.put("toolName", toolCall.name());
-                event.put("toolArgs", toolCall.arguments());
-                event.put("content", "调用工具: " + toolCall.name());
-            } else {
-                String text = assistantMsg.getText();
-                if (text != null && !text.isEmpty()) {
-                    event.put("type", "answer");
-                    event.put("content", text);
-                } else {
-                    event.put("type", "thinking");
-                    event.put("content", "思考中...");
-                }
-            }
-        } else if (message instanceof ToolResponseMessage toolResp) {
-            event.put("type", "tool_result");
-            var responses = toolResp.getResponses();
-            if (!responses.isEmpty()) {
-                var resp = responses.get(0);
-                event.put("toolName", resp.name());
-                event.put("content", resp.responseData());
-            }
-        } else {
-            event.put("type", "thinking");
-            String text = message.getText();
-            event.put("content", text != null ? text : "");
-        }
+    private void sendEvent(SseEmitter emitter, Map<String, Object> event) throws IOException {
+        String json = objectMapper.writeValueAsString(event);
+        emitter.send(SseEmitter.event().data(json));
+    }
 
-        return event;
+    @DeleteMapping("/service/chat/{chatId}")
+    public Map<String, Object> deleteChat(@PathVariable("chatId") String chatId) {
+        chatHistoryRepository.delete(ChatType.SERVICE.getType(), chatId);
+        return Map.of("success", true);
     }
 }

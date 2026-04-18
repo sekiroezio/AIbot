@@ -60,4 +60,11 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
     public List<String> getChatIds(String type) {
         return getChatIdsByType(type);
     }
+
+    @Override
+    public void delete(String type, String chatId) {
+        this.remove(new LambdaQueryWrapper<ChatHistory>()
+                .eq(ChatHistory::getType, type)
+                .eq(ChatHistory::getChatId, chatId));
+    }
 }
