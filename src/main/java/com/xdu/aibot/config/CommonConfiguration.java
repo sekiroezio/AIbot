@@ -1,6 +1,7 @@
 package com.xdu.aibot.config;
 
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
+import com.alibaba.cloud.ai.graph.agent.hook.summarization.SummarizationHook;
 import com.alibaba.cloud.ai.graph.checkpoint.savers.redis.RedisSaver;
 import com.alibaba.cloud.ai.graph.serializer.std.SpringAIStateSerializer;
 import com.alibaba.cloud.ai.memory.redis.RedissonRedisChatMemoryRepository;
@@ -125,12 +126,19 @@ public class CommonConfiguration {
 
     @Bean
     public ReactAgent bookAgent(ChatModel chatModel, ToolCallbackProvider tools, RedissonClient redissonClient) {
+        SummarizationHook summarizationHook = SummarizationHook.builder()
+                .model(chatModel)
+                .maxTokensBeforeSummary(100)
+                .messagesToKeep(1)
+                .build();
+
         return ReactAgent.builder()
                 .name("book-assistant")
                 .model(chatModel)
                 .instruction(SystemConstants.SERVICE_PROMPT)
                 .toolCallbackProviders(tools)
                 .saver(RedisSaver.builder().redisson(redissonClient).stateSerializer(new SpringAIStateSerializer()).build())
+                .hooks(summarizationHook)
                 .enableLogging(true)
                 .build();
     }
