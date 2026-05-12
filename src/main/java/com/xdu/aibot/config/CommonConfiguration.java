@@ -4,6 +4,7 @@ import com.alibaba.cloud.ai.graph.agent.ReactAgent;
 import com.alibaba.cloud.ai.graph.agent.hook.summarization.SummarizationHook;
 import com.alibaba.cloud.ai.graph.checkpoint.savers.redis.RedisSaver;
 import com.alibaba.cloud.ai.graph.serializer.std.SpringAIStateSerializer;
+import com.xdu.aibot.interceptor.SerializableTodoListInterceptor;
 import com.alibaba.cloud.ai.memory.redis.RedissonRedisChatMemoryRepository;
 import com.xdu.aibot.advisor.GraphRagAdvisor;
 import com.xdu.aibot.constant.SystemConstants;
@@ -128,8 +129,8 @@ public class CommonConfiguration {
     public ReactAgent bookAgent(ChatModel chatModel, ToolCallbackProvider tools, RedissonClient redissonClient) {
         SummarizationHook summarizationHook = SummarizationHook.builder()
                 .model(chatModel)
-                .maxTokensBeforeSummary(100)
-                .messagesToKeep(1)
+                .maxTokensBeforeSummary(4000)
+                .messagesToKeep(20)
                 .build();
 
         return ReactAgent.builder()
@@ -140,6 +141,7 @@ public class CommonConfiguration {
                 .saver(RedisSaver.builder().redisson(redissonClient).stateSerializer(new SpringAIStateSerializer()).build())
                 .hooks(summarizationHook)
                 .enableLogging(true)
+                .interceptors(SerializableTodoListInterceptor.builder().build())
                 .build();
     }
 
