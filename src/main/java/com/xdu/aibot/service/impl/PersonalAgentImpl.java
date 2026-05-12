@@ -7,7 +7,7 @@ import com.alibaba.cloud.ai.graph.streaming.OutputType;
 import com.alibaba.cloud.ai.graph.streaming.StreamingOutput;
 import com.xdu.aibot.constant.ChatType;
 import com.xdu.aibot.repository.ChatHistoryRepository;
-import com.xdu.aibot.service.CustomerService;
+import com.xdu.aibot.service.PersonalAgent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RMap;
@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Service
-public class CustomerServiceImpl implements CustomerService {
+public class PersonalAgentImpl implements PersonalAgent {
 
     private static final String CHECKPOINT_PREFIX = "graph:checkpoint:content:";
     private static final String THREAD_META_PREFIX = "graph:thread:meta:";
@@ -34,10 +34,10 @@ public class CustomerServiceImpl implements CustomerService {
     private final ChatHistoryRepository chatHistoryRepository;
     private final RedissonClient redissonClient;
 
-    public CustomerServiceImpl(ReactAgent bookAgent,
-                               ObjectMapper objectMapper,
-                               @Qualifier("chatHistoryServiceImpl") ChatHistoryRepository chatHistoryRepository,
-                               RedissonClient redissonClient) {
+    public PersonalAgentImpl(ReactAgent bookAgent,
+                             ObjectMapper objectMapper,
+                             @Qualifier("chatHistoryServiceImpl") ChatHistoryRepository chatHistoryRepository,
+                             RedissonClient redissonClient) {
         this.bookAgent = bookAgent;
         this.objectMapper = objectMapper;
         this.chatHistoryRepository = chatHistoryRepository;

@@ -1,6 +1,6 @@
 package com.xdu.aibot.controller;
 
-import com.xdu.aibot.service.CustomerService;
+import com.xdu.aibot.service.PersonalAgent;
 import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -11,27 +11,27 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/ai")
-public class CustomerServiceController {
+public class PersonalAgentController {
 
-    private final CustomerService customerService;
+    private final PersonalAgent personalAgent;
 
-    public CustomerServiceController(CustomerService customerService) {
-        this.customerService = customerService;
+    public PersonalAgentController(PersonalAgent personalAgent) {
+        this.personalAgent = personalAgent;
     }
 
     @RequestMapping(value = "/service", produces = "text/html;charset=utf-8")
     public String chat(String prompt, String chatId) {
-        return customerService.chat(prompt, chatId);
+        return personalAgent.chat(prompt, chatId);
     }
 
     @GetMapping(value = "/service/stream", produces = "text/html;charset=utf-8")
     public Flux<String> chatStream(String prompt, String chatId) throws GraphRunnerException {
-        return customerService.chatStream(prompt, chatId);
+        return personalAgent.chatStream(prompt, chatId);
     }
 
     @DeleteMapping("/service/chat/{chatId}")
     public Map<String, Object> deleteChat(@PathVariable("chatId") String chatId) {
-        customerService.deleteChat(chatId);
+        personalAgent.deleteChat(chatId);
         return Map.of("success", true);
     }
 }

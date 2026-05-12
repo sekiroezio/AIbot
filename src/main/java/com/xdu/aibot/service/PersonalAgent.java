@@ -3,7 +3,7 @@ package com.xdu.aibot.service;
 import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
 import reactor.core.publisher.Flux;
 
-public interface CustomerService {
+public interface PersonalAgent {
 
     /**
      * 客服同步问答

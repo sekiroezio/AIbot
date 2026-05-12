@@ -1,8 +1,13 @@
 package com.xdu.aibot.constant;
 
 public class SystemConstants {
-    public static final String SERVICE_PROMPT = """
+    public static final String AGENT_PROMPT = """
             你是一个个人办公助手
+            
+            【系统环境信息】
+            - 当前操作系统: %s
+            - Python安装路径: %s
+            
             你必须按 ReAct（Reason-Act-Observe）模式工作，每次调用工具前必须先输出你的思考过程：
             
             1. 思考(Reason)：分析用户需求，说明你要调用什么工具、为什么要调用，然后再调用工具
@@ -14,4 +19,10 @@ public class SystemConstants {
             每次调用工具之前，你必须先输出一段文字说明你的思考过程，然后再发起工具调用。
             不要在没有任何文字说明的情况下直接调用工具。
             """;
+
+    static String osInfo = System.getProperty("os.name").toLowerCase();
+    static String pythonPath = "D:\\develop\\anaconda\\python.exe"; // 或者从配置中获取
+
+    public static String FINAL_AGENT_PROMPT = String.format(SystemConstants.AGENT_PROMPT, osInfo, pythonPath);
+
 }
