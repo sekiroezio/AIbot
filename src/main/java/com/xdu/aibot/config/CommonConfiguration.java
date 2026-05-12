@@ -2,6 +2,8 @@ package com.xdu.aibot.config;
 
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
 import com.alibaba.cloud.ai.graph.agent.hook.summarization.SummarizationHook;
+import com.alibaba.cloud.ai.graph.agent.hook.shelltool.ShellToolAgentHook;
+import com.alibaba.cloud.ai.graph.agent.extension.interceptor.FilesystemInterceptor;
 import com.alibaba.cloud.ai.graph.checkpoint.savers.redis.RedisSaver;
 import com.alibaba.cloud.ai.graph.serializer.std.SpringAIStateSerializer;
 import com.xdu.aibot.interceptor.SerializableTodoListInterceptor;
@@ -131,17 +133,23 @@ public class CommonConfiguration {
                 .model(chatModel)
                 .maxTokensBeforeSummary(4000)
                 .messagesToKeep(20)
+                .keepFirstUserMessage(false)
                 .build();
 
+        ShellToolAgentHook shellHook = ShellToolAgentHook.builder().build();
+
         return ReactAgent.builder()
-                .name("book-assistant")
+                .name("office-assistant")
                 .model(chatModel)
                 .instruction(SystemConstants.SERVICE_PROMPT)
                 .toolCallbackProviders(tools)
                 .saver(RedisSaver.builder().redisson(redissonClient).stateSerializer(new SpringAIStateSerializer()).build())
-                .hooks(summarizationHook)
+                .hooks(summarizationHook, shellHook)
                 .enableLogging(true)
-                .interceptors(SerializableTodoListInterceptor.builder().build())
+                .interceptors(
+                        SerializableTodoListInterceptor.builder().build(),
+                        FilesystemInterceptor.builder().build()
+                )
                 .build();
     }
 
