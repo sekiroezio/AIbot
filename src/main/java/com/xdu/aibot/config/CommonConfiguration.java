@@ -3,6 +3,7 @@ package com.xdu.aibot.config;
 import com.alibaba.cloud.ai.graph.agent.ReactAgent;
 import com.alibaba.cloud.ai.graph.agent.hook.summarization.SummarizationHook;
 import com.alibaba.cloud.ai.graph.agent.hook.shelltool.ShellToolAgentHook;
+import com.alibaba.cloud.ai.graph.agent.hook.skills.SkillsAgentHook;
 import com.alibaba.cloud.ai.graph.agent.extension.interceptor.FilesystemInterceptor;
 import com.alibaba.cloud.ai.graph.checkpoint.savers.redis.RedisSaver;
 import com.alibaba.cloud.ai.graph.serializer.std.SpringAIStateSerializer;
@@ -43,7 +44,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.neo4j.core.Neo4jClient;
 import org.redisson.api.RedissonClient;
+import com.alibaba.cloud.ai.graph.skills.registry.SkillRegistry;
+import com.alibaba.cloud.ai.graph.skills.registry.classpath.ClasspathSkillRegistry;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.SmartInitializingSingleton;
+
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Configuration
@@ -131,12 +138,21 @@ public class CommonConfiguration {
     public ReactAgent PersonalAgent(ChatModel chatModel, ToolCallbackProvider tools, RedissonClient redissonClient) {
         SummarizationHook summarizationHook = SummarizationHook.builder()
                 .model(chatModel)
-                .maxTokensBeforeSummary(10000)
-                .messagesToKeep(20)
+                .maxTokensBeforeSummary(50000)
+                .messagesToKeep(10)
                 .keepFirstUserMessage(false)
                 .build();
 
         ShellToolAgentHook shellHook = ShellToolAgentHook.builder().build();
+
+        // Skills 技能注册：从 classpath:skills 加载技能
+        SkillRegistry registry = ClasspathSkillRegistry.builder()
+                .classpathPath("skills")
+                .build();
+
+        SkillsAgentHook skillsHook = SkillsAgentHook.builder()
+                .skillRegistry(registry)
+                .build();
 
         return ReactAgent.builder()
                 .name("office-assistant")
@@ -144,7 +160,7 @@ public class CommonConfiguration {
                 .instruction(SystemConstants.FINAL_AGENT_PROMPT)
                 .toolCallbackProviders(tools)
                 .saver(RedisSaver.builder().redisson(redissonClient).stateSerializer(new SpringAIStateSerializer()).build())
-                .hooks(summarizationHook, shellHook)
+                .hooks(summarizationHook, shellHook, skillsHook)
                 .enableLogging(true)
                 .interceptors(
                         SerializableTodoListInterceptor.builder().build(),
