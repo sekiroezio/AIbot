@@ -659,7 +659,11 @@
                 scrollToBottom();
 
                 try {
-                    const response = await fetch(`/ai/service/stream?prompt=${encodeURIComponent(question)}&chatId=${currentChatId.value}`);
+                    const response = await fetch(`/ai/service/stream`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: question, chatId: currentChatId.value })
+                    });
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     let buffer = '';

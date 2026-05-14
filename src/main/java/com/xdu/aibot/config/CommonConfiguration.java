@@ -7,6 +7,7 @@ import com.alibaba.cloud.ai.graph.agent.hook.skills.SkillsAgentHook;
 import com.alibaba.cloud.ai.graph.agent.extension.interceptor.FilesystemInterceptor;
 import com.alibaba.cloud.ai.graph.checkpoint.savers.redis.RedisSaver;
 import com.alibaba.cloud.ai.graph.serializer.std.SpringAIStateSerializer;
+import com.xdu.aibot.hook.CustomSummarizationHook;
 import com.xdu.aibot.interceptor.SerializableTodoListInterceptor;
 import com.alibaba.cloud.ai.memory.redis.RedissonRedisChatMemoryRepository;
 import com.xdu.aibot.advisor.GraphRagAdvisor;
@@ -136,10 +137,12 @@ public class CommonConfiguration {
 
     @Bean
     public ReactAgent PersonalAgent(ChatModel chatModel, ToolCallbackProvider tools, RedissonClient redissonClient) {
-        SummarizationHook summarizationHook = SummarizationHook.builder()
+
+        CustomSummarizationHook summarizationHook = CustomSummarizationHook.builder()
                 .model(chatModel)
-                .maxTokensBeforeSummary(50000)
-                .messagesToKeep(10)
+                .maxTokensBeforeSummary(2000)    // 触发压缩的 token 阈值
+                .safeRatio(0.25)                  // 保留消息 token ≤ 80000×25% = 20000
+                .minMessagesToKeep(1)             // 至少保留 2 条消息（保底）
                 .keepFirstUserMessage(false)
                 .build();
 

@@ -19,14 +19,14 @@ public class PersonalAgentController {
         this.personalAgent = personalAgent;
     }
 
-    @RequestMapping(value = "/service", produces = "text/html;charset=utf-8")
-    public String chat(String prompt, String chatId) {
-        return personalAgent.chat(prompt, chatId);
+    @PostMapping(value = "/service", produces = "text/html;charset=utf-8")
+    public String chat(@RequestBody Map<String, String> body) {
+        return personalAgent.chat(body.get("prompt"), body.get("chatId"));
     }
 
-    @GetMapping(value = "/service/stream", produces = "text/html;charset=utf-8")
-    public Flux<String> chatStream(String prompt, String chatId) throws GraphRunnerException {
-        return personalAgent.chatStream(prompt, chatId);
+    @PostMapping(value = "/service/stream", produces = "text/html;charset=utf-8")
+    public Flux<String> chatStream(@RequestBody Map<String, String> body) throws GraphRunnerException {
+        return personalAgent.chatStream(body.get("prompt"), body.get("chatId"));
     }
 
     @DeleteMapping("/service/chat/{chatId}")

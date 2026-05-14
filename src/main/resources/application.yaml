@@ -98,6 +98,9 @@ spring:
       max-request-size: 40MB
   jackson:
     default-property-inclusion: non_null
+server:
+  tomcat:
+    max-http-request-header-size: 65536
 logging:
   level:
     org.springframework.ai: debug
