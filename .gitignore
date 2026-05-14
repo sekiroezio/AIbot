@@ -3,6 +3,10 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+src/main/resources/skills/
+docs/
+com/alibaba/
+BookQueryMcp/
 
 ### STS ###
 .apt_generated
@@ -31,3 +35,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### pdf ###
+*.pdf
